@@ -1,0 +1,25 @@
+cargo-features = ["edition2024"]
+
+[package]
+name = "perun-solana-program"
+authors = ["PolyCrypt GmbH <info@polycry.pt>"]
+repository = "https://github.com/perun-network/perun-solana-program"
+description = " Perun state channel program on Solana"
+readme = "README.md"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+borsh = "1.5.7"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+solana-account-info = "2.2.1"
+solana-decode-error = "2.3.0"
+solana-msg = "2.2.1"
+solana-program-entrypoint = "2.2.1"
+solana-program-error = "2.2.2"
+solana-pubkey = "2.4.0"
+thiserror = "2.0.12"
