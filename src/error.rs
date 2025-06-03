@@ -21,8 +21,101 @@ use {
 };
 
 /// Errors that may be returned by the Perun program.
-#[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum Error {}
+#[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq, PartialOrd, Ord)]
+pub enum Error {
+    #[error("Channel ID mismatch")]
+    ChannelIDMismatch = 1,
+
+    #[error("Invalid version number")]
+    InvalidVersionNumber,
+
+    #[error("Channel is alreay final when opened")]
+    OpenOnFinalState,
+
+    #[error("Channel already exists")]
+    ChannelAlreadyExists,
+
+    #[error("Channel not found")]
+    ChannelNotFound,
+
+    #[error("Encoding error")]
+    EncodingError,
+
+    #[error("Invalid actor")]
+    InvalidActor,
+
+    #[error("Channel is already funded")]
+    AlreadyFunded,
+
+    #[error("Cannot close channel on non-final state")]
+    CloseOnNonFinalState,
+
+    #[error("Secp256k1 recovery failed")]
+    SecpRecoveryFailed,
+
+    #[error("Malformed verification input")]
+    MalformedVerificationInput,
+
+    #[error("Invalid signature")]
+    InvalidSignature,
+
+    #[error("Operation not allowed on unfunded channel")]
+    OperationOnUnfundedChannel,
+
+    #[error("Withdraw not allowed on open channel")]
+    WithdrawOnOpenChannel,
+
+    #[error("Dispute not allowed on closed channel")]
+    DisputeOnClosedChannel,
+
+    #[error("Invalid state transition")]
+    InvalidStateTransition,
+
+    #[error("Force close not allowed on closed channel")]
+    ForceCloseOnClosedChannel,
+
+    #[error("Force close not allowed on undisputed channel")]
+    ForceCloseOnUndisputedChannel,
+
+    #[error("Timelock not expired")]
+    TimelockNotExpired,
+
+    #[error("Funding aborted due to channel state")]
+    AbortFundingOnFundedChannel,
+
+    #[error("Funding aborted due to channel being closed")]
+    AbortFundingOnClosedChannel,
+
+    #[error("Funding aborted due to channel being disputed")]
+    AbortFundingOnDisputedChannel,
+
+    #[error("Funding aborted due to insufficient funds")]
+    AbortFundingWithoutFunds,
+
+    #[error("Verification failed")]
+    VerificationFailed,
+
+    #[error("Invalid public key type")]
+    InvalidPubKeyType,
+
+    #[error("Invalid key type")]
+    InvalidKeyType,
+
+    #[error("Conversion error")]
+    ConversionError,
+
+    #[error("Wrong asset type")]
+    WrongAssetType,
+
+    #[error("Invalid channel ID size")]
+    InvalidChanIdSize,
+
+    #[error("Wrong channel type")]
+    WrongChannelTypeErr,
+
+    #[error("Invalid address type")]
+    InvalidAddressType,
+}
 
 impl From<Error> for ProgramError {
     fn from(e: Error) -> Self {

@@ -28,6 +28,7 @@ fn process_instruction(
 ) -> ProgramResult {
     if let Err(error) = Processor::process(program_id, accounts, instruction_data) {
         // catch the error so we can print it
+        solana_msg::msg!("Error processing instruction: {:?}", error);
         return Err(error);
     }
     Ok(())
