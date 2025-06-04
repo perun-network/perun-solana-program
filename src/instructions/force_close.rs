@@ -12,11 +12,24 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-pub mod perun_types;
+use {
+    crate::state::perun_types::ChannelID,
+    solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey},
+};
 
-mod ethsig;
-mod multi;
-pub mod sol;
+pub fn process_force_close(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    channel_id: ChannelID,
+) -> ProgramResult {
+    msg!(
+        "Processing ForceClose instruction with program_id: {:?}, channel_id: {:?}",
+        program_id,
+        channel_id
+    );
 
-use multi::*;
-pub use perun_types::*;
+    //TODO
+    // Here you would implement the logic for processing the force close instruction.
+    // For now, we just log the parameters and return Ok.
+    Ok(())
+}

@@ -14,14 +14,16 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
-use solana_msg::msg;
-use solana_pubkey::Pubkey;
+
+use solana_program::pubkey::Pubkey;
 
 use crate::error::Error;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct Chain(u64);
 impl Chain {
+    pub const SPACE: usize = 8; // u64 size in bytes
+
     pub fn new(value: u64) -> Self {
         Chain(value)
     }
@@ -36,6 +38,9 @@ pub struct CrossAsset {
     pub chain: Chain,
     pub solana_address: Pubkey,
     pub eth_address: [u8; 20],
+}
+impl CrossAsset {
+    pub const SPACE: usize = Chain::SPACE + 32 + 20; // Chain (u64) + Solana address (Pubkey) + Ethereum address (20 bytes)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

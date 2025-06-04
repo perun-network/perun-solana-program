@@ -13,7 +13,7 @@
 //  limitations under the License.
 //! Solidity <-> Solana data types.
 
-use crate::state::{Params, Participant};
+use crate::state::{ChannelID, Params, Participant};
 use alloy::{
     primitives::{Address, Bytes as PrimBytes, U256, keccak256},
     sol,
@@ -117,10 +117,10 @@ pub fn convert_params(params: &Params) -> ParamsSol {
     }
 }
 
-pub fn get_channel_id_cross(params: &Params) -> [u8; 32] {
+pub fn get_channel_id_cross(params: &Params) -> ChannelID {
     let params_sol = convert_params(params);
     let encoded_data = params_sol.abi_encode();
 
     let hash = keccak256(&encoded_data);
-    return hash.into();
+    ChannelID::ID(hash.into())
 }

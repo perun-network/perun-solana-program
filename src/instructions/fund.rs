@@ -11,26 +11,27 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
+
 use {
-    crate::{error::Error, processor::Processor},
-    solana_program::{
-        account_info::AccountInfo,
-        entrypoint::{self, ProgramResult},
-        msg,
-        pubkey::Pubkey,
-    },
+    crate::state::perun_types::ChannelID,
+    solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey},
 };
 
-fn process_instruction(
+pub fn process_fund(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    instruction_data: &[u8],
+    channel_id: ChannelID,
+    party_idx: bool,
 ) -> ProgramResult {
-    if let Err(error) = Processor::process_instruction(program_id, accounts, instruction_data) {
-        // catch the error so we can print it
-        msg!("Error processing instruction: {:?}", error);
+    msg!(
+        "Processing Fund instruction with program_id: {:?}, channel_id: {:?}, party_idx: {}",
+        program_id,
+        channel_id,
+        party_idx
+    );
 
-        return Err(error);
-    }
+    //TODO
+    // Here you would implement the logic for processing the fund instruction.
+    // For now, we just log the parameters and return Ok.
     Ok(())
 }

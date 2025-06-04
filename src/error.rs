@@ -12,19 +12,19 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //! Error types
-
 use {
     num_derive::FromPrimitive,
-    solana_msg::msg,
-    solana_program_error::{ProgramError, ToStr},
+    solana_program::{msg, program_error::ProgramError},
     thiserror::Error,
 };
-
 /// Errors that may be returned by the Perun program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq, PartialOrd, Ord)]
 pub enum Error {
+    #[error("Invalid instruction")]
+    InvalidInstruction = 0,
+
     #[error("Channel ID mismatch")]
-    ChannelIDMismatch = 1,
+    ChannelIDMismatch,
 
     #[error("Invalid version number")]
     InvalidVersionNumber,
@@ -120,19 +120,5 @@ pub enum Error {
 impl From<Error> for ProgramError {
     fn from(e: Error) -> Self {
         ProgramError::Custom(e as u32)
-    }
-}
-
-impl ToStr for Error {
-    fn to_str<E>(&self) -> &'static str
-    where
-        E: 'static + ToStr + TryFrom<u32>,
-    {
-        match self {
-            _ => {
-                msg!("Error: {}", self.to_string());
-                "Unknown error"
-            }
-        }
     }
 }

@@ -11,26 +11,29 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
+
 use {
-    crate::{error::Error, processor::Processor},
-    solana_program::{
-        account_info::AccountInfo,
-        entrypoint::{self, ProgramResult},
-        msg,
-        pubkey::Pubkey,
-    },
+    crate::state::perun_types::ChannelState,
+    solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey},
 };
 
-fn process_instruction(
+pub fn process_close(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    instruction_data: &[u8],
+    state: ChannelState,
+    sig_a: [u8; 65],
+    sig_b: [u8; 65],
 ) -> ProgramResult {
-    if let Err(error) = Processor::process_instruction(program_id, accounts, instruction_data) {
-        // catch the error so we can print it
-        msg!("Error processing instruction: {:?}", error);
+    msg!(
+        "Processing Close instruction with program_id: {:?}, state: {:?}, sig_a: {:?}, sig_b: {:?}",
+        program_id,
+        state,
+        sig_a,
+        sig_b
+    );
 
-        return Err(error);
-    }
+    //TODO
+    // Here you would implement the logic for processing the close instruction.
+    // For now, we just log the parameters and return Ok.
     Ok(())
 }

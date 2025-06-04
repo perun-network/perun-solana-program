@@ -9,6 +9,10 @@ readme = "README.md"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+no-entrypoint = []
+test-sbf = []
+
 [lib]
 crate-type = ["cdylib", "lib"]
 
@@ -19,10 +23,5 @@ k256 = "0.13.4"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 sha3 = "0.10.8"
-solana-account-info = "2.2.1"
-solana-decode-error = "2.3.0"
-solana-msg = "2.2.1"
-solana-program-entrypoint = "2.2.1"
-solana-program-error = "2.2.2"
-solana-pubkey = { version = "2.4.0", features = ["borsh"] }
+solana-program = "2.2.1"
 thiserror = "2.0.12"

@@ -11,4 +11,25 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
-//! Instruction types
+
+use {
+    crate::state::perun_types::ChannelID,
+    solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey},
+};
+
+pub fn process_abort_funding(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    channel_id: ChannelID,
+) -> ProgramResult {
+    msg!(
+        "Processing AbortFunding instruction with program_id: {:?}, channel_id: {:?}",
+        program_id,
+        channel_id
+    );
+
+    //TODO
+    // Here you would implement the logic for processing the abort funding instruction.
+    // For now, we just log the parameters and return Ok.
+    Ok(())
+}
