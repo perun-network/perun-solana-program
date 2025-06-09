@@ -50,7 +50,7 @@ impl ChannelID {
 pub struct Balances {
     // token represents a channel's asset / currency. Currently this contract
     // supports single-asset channels, but multi-asset support is possible.
-    tokens: Vec<CrossAsset>,
+    pub tokens: Vec<CrossAsset>,
     pub bal_a: Vec<i128>,
     pub bal_b: Vec<i128>,
 }
@@ -151,5 +151,9 @@ impl Channel {
         let state_size = self.state.get_size();
         let control_size = Control::SPACE;
         params_size + state_size + control_size
+    }
+
+    pub fn is_funded(&self) -> bool {
+        self.control.funded_a && self.control.funded_b
     }
 }

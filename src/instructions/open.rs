@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 use crate::{
-    error::Error,
+    error::PerunError,
     state::{
         perun_types::{Channel, ChannelID, ChannelState, Control, Params},
         sol::get_channel_id_cross,
@@ -32,7 +32,7 @@ use solana_program::{
     sysvar::{Sysvar, clock::Clock},
 };
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 
 pub fn process_open(
     program_id: &Pubkey,
@@ -40,13 +40,11 @@ pub fn process_open(
     params: Params,
     state: ChannelState,
 ) -> ProgramResult {
-    //TODO
-
     // 1. Compute and validate channel ID
     let cid = get_channel_id_cross(&params);
     if cid != ChannelID::ID(state.channel_id) {
         msg!("ChannelID mismatch");
-        return Err(Error::ChannelIDMismatch.into());
+        return Err(PerunError::ChannelIDMismatch.into());
     }
 
     let account_info_iter = &mut accounts.iter();
@@ -54,7 +52,7 @@ pub fn process_open(
     let payer = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
 
-    let (channel_pda, _bump) = Pubkey::find_program_address(
+    let (channel_pda, chanenl_bump) = Pubkey::find_program_address(
         &[Channel::SEED_PREFIX.as_bytes(), state.channel_id.as_ref()],
         program_id,
     );
@@ -67,17 +65,17 @@ pub fn process_open(
     // 2. Check if channel already exists
     if !channel_account.data_is_empty() {
         msg!("Channel already exists");
-        return Err(Error::ChannelAlreadyExists.into());
+        return Err(PerunError::ChannelAlreadyExists.into());
     }
 
     if state.version != 0 {
         msg!("Invalid initial version number");
-        return Err(Error::InvalidVersionNumber.into());
+        return Err(PerunError::InvalidVersionNumber.into());
     }
 
     if state.finalized {
         msg!("Cannot open channel on final state");
-        return Err(Error::OpenOnFinalState.into());
+        return Err(PerunError::OpenOnFinalState.into());
     }
 
     // 3. Construct control struct
@@ -116,7 +114,11 @@ pub fn process_open(
             channel_account.clone(),
             system_program.clone(),
         ],
-        &[&[Channel::SEED_PREFIX.as_bytes(), cid.as_bytes()]],
+        &[&[
+            Channel::SEED_PREFIX.as_bytes(),
+            cid.as_bytes(),
+            &[chanenl_bump],
+        ]],
     )?;
 
     channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;

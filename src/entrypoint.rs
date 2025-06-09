@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 use {
-    crate::{error::Error, processor::Processor},
+    crate::{error::PerunError, processor::Processor},
     solana_program::{
         account_info::AccountInfo,
         entrypoint::{self, ProgramResult},

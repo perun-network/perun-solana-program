@@ -14,7 +14,7 @@
 //! Program state processor
 
 use crate::{
-    error::Error,
+    error::PerunError,
     instructions::{
         abort_funding, close, dispute, force_close, fund, open,
         perun_instructions::PerunInstruction, withdraw,
@@ -44,7 +44,7 @@ impl Processor {
         instruction_data: &[u8],
     ) -> ProgramResult {
         let instruction = PerunInstruction::try_from_slice(instruction_data)
-            .map_err(|_| Error::InvalidInstruction)?;
+            .map_err(|_| PerunError::InvalidInstruction)?;
 
         match instruction {
             PerunInstruction::Open { params, state } => {

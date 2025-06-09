@@ -17,12 +17,13 @@ use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 
 use solana_program::pubkey::Pubkey;
 
-use crate::error::Error;
+use crate::error::PerunError;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct Chain(u64);
 impl Chain {
     pub const SPACE: usize = 8; // u64 size in bytes
+    pub const SOLANA_BACKEND_ID: u64 = 6;
 
     pub fn new(value: u64) -> Self {
         Chain(value)
@@ -53,36 +54,37 @@ impl ChannelPubKeyCross {
         &self,
         msg_bytes: [u8; 32],
         sig: &[u8; 65], // r || s || v (Ethereum-style)
-    ) -> Result<(), Error> {
+    ) -> Result<(), PerunError> {
         // 1. Extract r,s (first 64 bytes) and v (last byte)
         let r_s = &sig[0..64];
         let v = sig[64];
         if v > 1 {
-            return Err(Error::InvalidSignature.into());
+            return Err(PerunError::InvalidSignature.into());
         }
 
         // 2. Convert to Signature and RecoveryId
         let signature =
-            Signature::from_slice(r_s).map_err(|_| Error::MalformedVerificationInput)?;
-        let recovery_id = RecoveryId::try_from(v).map_err(|_| Error::MalformedVerificationInput)?;
+            Signature::from_slice(r_s).map_err(|_| PerunError::MalformedVerificationInput)?;
+        let recovery_id =
+            RecoveryId::try_from(v).map_err(|_| PerunError::MalformedVerificationInput)?;
 
         // 3. Recover public key
         let recovered_key = VerifyingKey::recover_from_msg(&msg_bytes, &signature, recovery_id)
-            .map_err(|_| Error::SecpRecoveryFailed)?;
+            .map_err(|_| PerunError::SecpRecoveryFailed)?;
 
         // 4. Convert recovered key to uncompressed SEC1 format
         let recovered_bytes = recovered_key.to_encoded_point(false); // false = uncompressed
         let recovered_pubkey = recovered_bytes.as_bytes();
 
         if recovered_pubkey.len() != 65 {
-            return Err(Error::SecpRecoveryFailed.into());
+            return Err(PerunError::SecpRecoveryFailed.into());
         }
 
         // 5. Compare recovered key to stored key
         if &self.key == recovered_pubkey {
             Ok(())
         } else {
-            Err(Error::InvalidSignature.into())
+            Err(PerunError::InvalidSignature.into())
         }
     }
 }

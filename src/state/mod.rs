@@ -15,7 +15,7 @@
 pub mod perun_types;
 
 mod ethsig;
-mod multi;
+pub mod multi;
 pub mod sol;
 
 use multi::*;

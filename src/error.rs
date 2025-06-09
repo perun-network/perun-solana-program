@@ -19,7 +19,7 @@ use {
 };
 /// Errors that may be returned by the Perun program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq, PartialOrd, Ord)]
-pub enum Error {
+pub enum PerunError {
     #[error("Invalid instruction")]
     InvalidInstruction = 0,
 
@@ -117,8 +117,8 @@ pub enum Error {
     InvalidAddressType,
 }
 
-impl From<Error> for ProgramError {
-    fn from(e: Error) -> Self {
+impl From<PerunError> for ProgramError {
+    fn from(e: PerunError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
