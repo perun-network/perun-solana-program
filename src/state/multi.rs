@@ -12,7 +12,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use alloy::rpc::types::state;
 use borsh::{BorshDeserialize, BorshSerialize};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 

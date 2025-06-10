@@ -277,6 +277,7 @@ pub struct Channel {
 impl Channel {
     pub const SEED_PREFIX: &'static str = "channel";
 
+    /// get_size returns the dynamic size of the channel in bytes.
     pub fn get_size(&self) -> usize {
         let params_size = Params::SPACE;
         let state_size = self.state.get_size();
@@ -284,6 +285,7 @@ impl Channel {
         params_size + state_size + control_size
     }
 
+    /// is_funded checks if both participants have funded the channel.
     pub fn is_funded(&self) -> bool {
         self.control.funded_a && self.control.funded_b
     }
