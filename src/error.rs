@@ -65,6 +65,9 @@ pub enum PerunError {
     #[error("Withdraw not allowed on open channel")]
     WithdrawOnOpenChannel,
 
+    #[error("Fund is already withdrawn")]
+    AlreadyWithdrawn,
+
     #[error("Dispute not allowed on closed channel")]
     DisputeOnClosedChannel,
 

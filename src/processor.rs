@@ -102,21 +102,13 @@ impl Processor {
             PerunInstruction::Withdraw {
                 channel_id,
                 party_idx,
-                one_withdrawer,
             } => {
                 msg!(
-                    "Processing Withdraw instruction with channel_id: {:?}, party_idx: {}, one_withdrawer: {}",
+                    "Processing Withdraw instruction with channel_id: {:?}, party_idx: {}",
                     channel_id,
                     party_idx,
-                    one_withdrawer
                 );
-                withdraw::process_withdraw(
-                    program_id,
-                    accounts,
-                    channel_id,
-                    party_idx,
-                    one_withdrawer,
-                )
+                withdraw::process_withdraw(program_id, accounts, channel_id, party_idx)
             }
             PerunInstruction::AbortFunding { channel_id } => {
                 msg!(

@@ -289,4 +289,9 @@ impl Channel {
     pub fn is_funded(&self) -> bool {
         self.control.funded_a && self.control.funded_b
     }
+
+    // is_withdrawn checks if both participants have withdrawn their balances from a closed channel.
+    pub fn is_withdrawn(&self) -> bool {
+        self.control.closed && self.control.withdrawn_a && self.control.withdrawn_b
+    }
 }

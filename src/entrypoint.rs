@@ -12,15 +12,13 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 use {
-    crate::{error::PerunError, processor::Processor},
+    crate::processor::Processor,
     solana_program::{
-        account_info::AccountInfo,
-        entrypoint::{self, ProgramResult},
-        msg,
-        pubkey::Pubkey,
+        account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, msg, pubkey::Pubkey,
     },
 };
 
+entrypoint!(process_instruction);
 fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
