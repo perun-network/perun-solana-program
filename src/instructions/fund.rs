@@ -20,15 +20,13 @@ use {
             perun_types::{Channel, ChannelID},
         },
     },
-    borsh::BorshDeserialize,
+    borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
         account_info::{AccountInfo, next_account_info},
         entrypoint::ProgramResult,
         msg,
-        program::invoke,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_instruction,
     },
 };
 
@@ -53,7 +51,6 @@ pub fn process_fund(
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA
     let (channel_pda, _bump) = Pubkey::find_program_address(
@@ -113,7 +110,7 @@ pub fn process_fund(
         }
     };
 
-    // Verify signer is the expected funder
+    // 3. Verify signer is the expected funder
     if payer.key != &expected_funder {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -129,19 +126,18 @@ pub fn process_fund(
         if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
             if amount[i] > 0 {
                 let lamports = amount[i] as u64;
-                let transfer_ix =
-                    system_instruction::transfer(payer.key, channel_account.key, lamports);
-                invoke(
-                    &transfer_ix,
-                    &[
-                        payer.clone(),
-                        channel_account.clone(),
-                        system_program.clone(),
-                    ],
-                )?;
+                payer
+                    .try_borrow_mut_lamports()?
+                    .checked_sub(lamports)
+                    .ok_or(ProgramError::InsufficientFunds)?;
+                channel_account
+                    .try_borrow_mut_lamports()?
+                    .checked_add(lamports)
+                    .ok_or(ProgramError::InsufficientFunds)?;
             }
         }
     }
+    channel.serialize(&mut &mut channel_account.try_borrow_mut_data()?[..])?;
 
     // 4. Emit fund event.
     msg!(

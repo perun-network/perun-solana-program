@@ -88,6 +88,7 @@ pub fn process_open(
         withdrawn_b: false,
         disputed: false,
         timestamp: clock.unix_timestamp as u64,
+        creator: payer.key.clone(),
     };
 
     // 4. Build and serialize the channel
@@ -120,8 +121,9 @@ pub fn process_open(
             &[chanenl_bump],
         ]],
     )?;
-
     channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;
+
+    // 5. Emit open event.
     msg!(
         "Event: perun::open {:?}: state: {:?}",
         cid,

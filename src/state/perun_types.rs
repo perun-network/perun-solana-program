@@ -255,9 +255,11 @@ pub struct Control {
     /// timestamp must always contain the unix time in seconds of the last successful dispute.
     /// If the channel has not been successfully disputed, the timestamp value is not significant.
     pub timestamp: u64,
+    /// creator of the channel, i.e. the participant that created it.
+    pub creator: Pubkey,
 }
 impl Control {
-    pub const SPACE: usize = 14; // 1 + 1 + 1 + 1 + 1 + 1 + 8
+    pub const SPACE: usize = 46; // 1 + 1 + 1 + 1 + 1 + 1 + 8 + 32
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq)]

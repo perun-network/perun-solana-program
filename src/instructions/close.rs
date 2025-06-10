@@ -20,7 +20,7 @@ use {
             perun_types::{Channel, ChannelState},
         },
     },
-    borsh::BorshDeserialize,
+    borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
         account_info::{AccountInfo, next_account_info},
         entrypoint::ProgramResult,
@@ -47,8 +47,6 @@ pub fn process_close(
 
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA.
     let (channel_pda, _bump) = Pubkey::find_program_address(
@@ -94,6 +92,7 @@ pub fn process_close(
     // 4. Update channel state to closed.
     channel.control.closed = true;
     channel.state = state.clone();
+    channel.serialize(&mut &mut channel_account.try_borrow_mut_data()?[..])?;
 
     // 5. Emit close event.
     msg!(
