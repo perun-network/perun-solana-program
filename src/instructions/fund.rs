@@ -66,7 +66,7 @@ pub fn process_fund(
         return Err(ProgramError::InvalidArgument);
     }
 
-    let mut channel = Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
+    let channel = &mut Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
 
     // 2. Fund the with the corresponding party index
     let (expected_funder, amount) = match party_idx {
@@ -145,10 +145,11 @@ pub fn process_fund(
 
     // 4. Emit fund event.
     msg!(
-        "Event: perun::fund channel {:?} for party {:?} with amount: {:?}",
+        "Event: perun::fund channel {:?} for party {:?} with amount: {:?} and state {:?}",
         channel_id,
         if party_idx { "B" } else { "A" },
-        amount
+        amount,
+        channel.state.clone()
     );
 
     if channel.is_funded() {

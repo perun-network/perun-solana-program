@@ -12,12 +12,17 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use alloy::rpc::types::state;
 use borsh::{BorshDeserialize, BorshSerialize};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 
 use solana_program::pubkey::Pubkey;
 
-use crate::error::PerunError;
+use crate::{error::PerunError, state::sol::AssetSol};
+
+use alloy_primitives::{
+    Address as EthAddress, Bytes as PrimBytes, FixedBytes, U256, Uint, keccak256,
+};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct Chain(u64);
@@ -41,7 +46,7 @@ pub struct CrossAsset {
     pub eth_address: [u8; 20],
 }
 impl CrossAsset {
-    pub const SPACE: usize = Chain::SPACE + 32 + 20; // Chain (u64) + Solana address (Pubkey) + Ethereum address (20 bytes)
+    pub const SPACE: usize = Chain::SPACE + 32 + 20; // Chain (u64) + Solana address (Pubkey) + Ethereum address (20 bytes).
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -52,8 +57,8 @@ pub struct ChannelPubKeyCross {
 impl ChannelPubKeyCross {
     pub fn verify_signature_cross(
         &self,
-        msg_bytes: [u8; 32],
-        sig: &[u8; 65], // r || s || v (Ethereum-style)
+        msg_bytes: FixedBytes<32>, // 32-byte message hash (e.g., keccak256(data))],
+        sig: &[u8; 65],            // r || s || v (Ethereum-style)
     ) -> Result<(), PerunError> {
         // 1. Extract r,s (first 64 bytes) and v (last byte)
         let r_s = &sig[0..64];
@@ -62,6 +67,10 @@ impl ChannelPubKeyCross {
             return Err(PerunError::InvalidSignature.into());
         }
 
+        let mut state_sol_abi: [u8; 32] = [0u8; 32];
+        let ssl = msg_bytes.as_slice();
+        state_sol_abi.copy_from_slice(&ssl);
+
         // 2. Convert to Signature and RecoveryId
         let signature =
             Signature::from_slice(r_s).map_err(|_| PerunError::MalformedVerificationInput)?;
@@ -69,7 +78,7 @@ impl ChannelPubKeyCross {
             RecoveryId::try_from(v).map_err(|_| PerunError::MalformedVerificationInput)?;
 
         // 3. Recover public key
-        let recovered_key = VerifyingKey::recover_from_msg(&msg_bytes, &signature, recovery_id)
+        let recovered_key = VerifyingKey::recover_from_msg(&state_sol_abi, &signature, recovery_id)
             .map_err(|_| PerunError::SecpRecoveryFailed)?;
 
         // 4. Convert recovered key to uncompressed SEC1 format
@@ -87,4 +96,40 @@ impl ChannelPubKeyCross {
             Err(PerunError::InvalidSignature.into())
         }
     }
+}
+
+pub fn convert_cross_assets(
+    cross_assets: &Vec<CrossAsset>,
+) -> Result<(AssetSol, AssetSol), PerunError> {
+    if cross_assets.len() != 2 {
+        return Err(PerunError::ConversionError.into());
+    }
+
+    let convert_asset = |cross_asset: &CrossAsset| -> Result<AssetSol, PerunError> {
+        let chain_id = U256::from(cross_asset.chain.as_u64());
+
+        let zero_eth_address = EthAddress::from_slice(&[0u8; 20]);
+        let zero_cc_address = vec![0u8; 32];
+
+        let (eth_holder, cc_holder) = if chain_id != U256::from(Chain::SOLANA_BACKEND_ID) {
+            // Ethereum side
+            let eth_holder = EthAddress::from_slice(cross_asset.eth_address.clone().as_ref());
+            (eth_holder, zero_cc_address)
+        } else {
+            // Solana side
+            let cc_holder = cross_asset.solana_address.clone(); // Should already be 32 bytes
+            (zero_eth_address, cc_holder.as_array().to_vec())
+        };
+
+        Ok(AssetSol {
+            chainID: chain_id,
+            ethHolder: eth_holder,
+            ccHolder: cc_holder.into(),
+        })
+    };
+
+    Ok((
+        convert_asset(&cross_assets[0])?,
+        convert_asset(&cross_assets[1])?,
+    ))
 }

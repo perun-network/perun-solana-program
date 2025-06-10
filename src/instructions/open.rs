@@ -122,7 +122,11 @@ pub fn process_open(
     )?;
 
     channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;
-    msg!("Event: perun::open {:?}", cid);
+    msg!(
+        "Event: perun::open {:?}: state: {:?}",
+        cid,
+        channel.state.clone()
+    );
 
     Ok(())
 }

@@ -18,6 +18,8 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 alloy = "1.0.9"
+alloy-primitives = "1.2.0"
+alloy-sol-types = "1.2.0"
 borsh = { version = "1.5.7", features = ["derive"] }
 k256 = "0.13.4"
 num-derive = "0.4.2"

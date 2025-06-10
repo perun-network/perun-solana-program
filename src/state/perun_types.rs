@@ -12,7 +12,21 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::state::CrossAsset;
+use std::fmt::Display;
+
+use crate::{
+    error::PerunError,
+    state::{
+        CrossAsset,
+        multi::{Chain, convert_cross_assets},
+        sol::{AllocationSol, StateSol},
+    },
+};
+use alloy_primitives::{
+    Address as EthAddress, Bytes as PrimBytes, FixedBytes, U256, Uint, keccak256,
+};
+use alloy_sol_types::SolValue;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
@@ -24,6 +38,7 @@ pub struct Participant {
     // The participant receives payments on this address.
     pub solana_address: Pubkey,
     pub cc_address: [u8; 20],
+    pub l2_pubkey: [u8; 65], // Uncompressed secp256k1 public key
 }
 impl Participant {
     pub const SPACE: usize = 32 + 20; // 32 bytes for Pubkey + 20 bytes for Ethereum address
@@ -102,6 +117,120 @@ impl ChannelState {
         let version_size = 8; // 8 bytes
         let finalized_size = 1; // 1 byte
         channel_id_size + balances_size + version_size + finalized_size
+    }
+
+    pub fn convert_allocation(&self) -> Result<AllocationSol, PerunError> {
+        // Ensure that there are exactly two cross-chain assets
+        let cross_assets = self.balances.tokens.clone();
+        // Determine backends based on the address types in cross_assets
+        let backends: [U256; 2] = [
+            {
+                // Check if the chain is 6
+                if unsafe { cross_assets.get_unchecked(0) }.chain
+                    != Chain::new(Chain::SOLANA_BACKEND_ID)
+                {
+                    U256::from(1) // Ethereum
+                } else {
+                    U256::from(Chain::SOLANA_BACKEND_ID) // Solana
+                }
+            },
+            {
+                // Check if the chain is 6
+                if unsafe { cross_assets.get_unchecked(1).chain }
+                    != Chain::new(Chain::SOLANA_BACKEND_ID)
+                {
+                    U256::from(1) // Ethereum
+                } else {
+                    U256::from(Chain::SOLANA_BACKEND_ID) // Solana
+                }
+            },
+        ];
+
+        // Use convert_cross_assets to convert both assets
+        let (asset_sol_0, asset_sol_1) = convert_cross_assets(&cross_assets)?;
+
+        // Convert balances
+        let bals_cc_a = U256::from(
+            *self
+                .balances
+                .bal_a
+                .get(0)
+                .ok_or(PerunError::ConversionError)? as u128,
+        );
+        let bals_solana_a = U256::from(
+            *self
+                .balances
+                .bal_a
+                .get(1)
+                .ok_or(PerunError::ConversionError)? as u128,
+        );
+        let bals_cc_b = U256::from(
+            *self
+                .balances
+                .bal_b
+                .get(0)
+                .ok_or(PerunError::ConversionError)? as u128,
+        );
+        let bals_solana_b = U256::from(
+            *self
+                .balances
+                .bal_b
+                .get(1)
+                .ok_or(PerunError::ConversionError)? as u128,
+        );
+
+        // Construct the AllocationSol with the vectors
+        Ok(AllocationSol {
+            assets: [asset_sol_0, asset_sol_1].to_vec(), // Directly convert to a vector
+            backends: backends.to_vec(),
+            balances: [
+                [bals_cc_a, bals_cc_b].to_vec(),
+                [bals_solana_a, bals_solana_b].to_vec(),
+            ]
+            .to_vec(),
+            locked: [].to_vec(),
+        })
+    }
+
+    pub fn convert_state(&self) -> Result<StateSol, PerunError> {
+        // let channel_id_xdr = state.channel_id.clone().to_xdr(e);
+
+        let channel_id = self.channel_id.clone();
+
+        // Define the expected length
+        let chanid_len = 32;
+
+        // Check if the length of channel_id_xdr matches the expected length
+        if channel_id.len() != chanid_len {
+            return Err(PerunError::InvalidChanIdSize); // Ensure this error variant is defined
+        }
+
+        let channel_id_alloy = FixedBytes::from_slice(&channel_id);
+        let app_data_alloy = PrimBytes::copy_from_slice(&[]);
+        let is_final_alloy = self.finalized;
+
+        let outcome = self.convert_allocation()?;
+
+        Ok(StateSol {
+            channelID: channel_id_alloy,
+            version: self.version,
+            outcome,
+            appData: app_data_alloy,
+            isFinal: is_final_alloy,
+        })
+    }
+
+    pub fn hash_state_eth_prefixed(&self) -> Result<FixedBytes<32>, PerunError> {
+        let state_sik = self.convert_state()?;
+        let state_abienc = state_sik.abi_encode();
+
+        let state_sol_hashed = keccak256(&state_abienc);
+
+        let prefix = b"\x19Ethereum Signed Message:\n32";
+        let prefix_hash = [prefix.as_ref(), &state_sol_hashed[..]].concat();
+
+        let state_sol_prefix_hash = keccak256(&prefix_hash);
+        Ok(state_sol_prefix_hash)
     }
 }
 

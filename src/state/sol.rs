@@ -77,14 +77,16 @@ sol! {
 pub fn convert_participant(participant: &Participant) -> ParticipantSol {
     let solana_addr_array = participant.solana_address.as_ref();
     let cc_addr = participant.cc_address.clone();
+    let l2_pubkey = participant.l2_pubkey.clone();
 
     let cc_addr_alloy = Address::from_slice(&cc_addr);
-    let mut part_bytes = [0u8; 52]; // 32 + 20
+    let mut part_bytes = [0u8; 117]; // 32 + 20 + 65
     let mut solana_addr_slice = [0u8; 32];
     solana_addr_slice.copy_from_slice(&solana_addr_array);
 
     part_bytes[0..32].copy_from_slice(&solana_addr_slice); // Solana pubkey
     part_bytes[32..52].copy_from_slice(&cc_addr); // Cross-chain address
+    part_bytes[52..117].copy_from_slice(&l2_pubkey); // L2 pubkey
 
     let solana_addr_alloy = PrimBytes::copy_from_slice(&part_bytes);
     return ParticipantSol {
