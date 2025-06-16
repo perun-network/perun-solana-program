@@ -14,7 +14,7 @@
 
 pub mod perun_types;
 
-mod ethsig;
+pub mod ethsig;
 pub mod multi;
 pub mod sol;
 

@@ -22,12 +22,14 @@ use {
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
-        account_info::{AccountInfo, next_account_info},
+        account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
+        program::invoke,
         program_error::ProgramError,
         pubkey::Pubkey,
     },
+    spl_token::instruction as token_instruction,
 };
 
 const A: bool = false;
@@ -64,7 +66,6 @@ pub fn process_fund(
     }
 
     let channel = &mut Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
-
     // 2. Fund the with the corresponding party index
     let (expected_funder, amount) = match party_idx {
         A => {
@@ -120,20 +121,51 @@ pub fn process_fund(
 
     // 3. Transfer the funds to the channel account.
     let tokens = &channel.state.balances.tokens;
-    // Transfer lamports from payer to the channel PDA
     for i in 0..tokens.len() {
         let token = tokens.get(i).unwrap();
         if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
-            if amount[i] > 0 {
-                let lamports = amount[i] as u64;
-                payer
-                    .try_borrow_mut_lamports()?
-                    .checked_sub(lamports)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-                channel_account
-                    .try_borrow_mut_lamports()?
-                    .checked_add(lamports)
-                    .ok_or(ProgramError::InsufficientFunds)?;
+            if token.is_native_sol() {
+                // lamport transfer
+                if amount[i] > 0 {
+                    let lamports = amount[i] as u64;
+                    payer
+                        .try_borrow_mut_lamports()?
+                        .checked_sub(lamports)
+                        .ok_or(ProgramError::InsufficientFunds)?;
+                    channel_account
+                        .try_borrow_mut_lamports()?
+                        .checked_add(lamports)
+                        .ok_or(ProgramError::InsufficientFunds)?;
+                }
+            } else {
+                // SPL token transfer
+                let mint_account = next_account_info(account_info_iter)?;
+                let from_associated_token_account = next_account_info(account_info_iter)?;
+                let channel_associated_token_account = next_account_info(account_info_iter)?;
+                let owner = next_account_info(account_info_iter)?;
+                let token_program = next_account_info(account_info_iter)?;
+                if amount[i] > 0 {
+                    let token_amount = amount[i] as u64;
+
+                    invoke(
+                        &token_instruction::transfer(
+                            token_program.key,
+                            from_associated_token_account.key,
+                            channel_associated_token_account.key,
+                            owner.key,
+                            &[owner.key, channel_account.key],
+                            token_amount,
+                        )?,
+                        &[
+                            mint_account.clone(),
+                            from_associated_token_account.clone(),
+                            channel_associated_token_account.clone(),
+                            owner.clone(),
+                            channel_account.clone(),
+                            token_program.clone(),
+                        ],
+                    )?
+                }
             }
         }
     }

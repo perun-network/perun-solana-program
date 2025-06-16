@@ -45,6 +45,12 @@ pub struct CrossAsset {
 }
 impl CrossAsset {
     pub const SPACE: usize = Chain::SPACE + 32 + 20; // Chain (u64) + Solana address (Pubkey) + Ethereum address (20 bytes).
+
+    /// is_native_sol checks if the asset is native Solana SOL.
+    /// Native SOL is represented by a default Pubkey (all zeros).
+    pub fn is_native_sol(&self) -> bool {
+        self.solana_address == Pubkey::default()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

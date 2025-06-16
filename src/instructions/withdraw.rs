@@ -25,12 +25,15 @@ use {
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
+        program::invoke,
         program_error::ProgramError,
         pubkey::Pubkey,
         rent::Rent,
         system_program,
         sysvar::Sysvar,
     },
+    spl_associated_token_account::instruction as associated_token_account_instruction,
+    spl_token::instruction as token_instruction,
 };
 
 const A: bool = false;
@@ -57,6 +60,7 @@ pub fn process_withdraw(
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
+    let receiver_account = next_account_info(account_info_iter)?;
     let creator_account = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA.
@@ -118,6 +122,10 @@ pub fn process_withdraw(
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
+    if receiver_account.key != &receiver {
+        msg!("Receiver is not the actor");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
 
     // Perform the withdrawal.
     let tokens = &channel.state.balances.tokens;
@@ -126,15 +134,72 @@ pub fn process_withdraw(
         let token = tokens.get(i).unwrap();
         if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
             if amount[i] > 0 {
-                let lamports = amount[i] as u64;
-                channel_account
-                    .try_borrow_mut_lamports()?
-                    .checked_sub(lamports)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-                payer
-                    .try_borrow_mut_lamports()?
-                    .checked_add(lamports)
-                    .ok_or(ProgramError::InsufficientFunds)?;
+                if token.is_native_sol() {
+                    // Native SOL transfer
+                    let lamports = amount[i] as u64;
+                    channel_account
+                        .try_borrow_mut_lamports()?
+                        .checked_sub(lamports)
+                        .ok_or(ProgramError::InsufficientFunds)?;
+                    receiver_account
+                        .try_borrow_mut_lamports()?
+                        .checked_add(lamports)
+                        .ok_or(ProgramError::InsufficientFunds)?;
+                } else {
+                    // SPL token transfer
+                    let mint_account = next_account_info(account_info_iter)?;
+                    let channel_associated_token_account = next_account_info(account_info_iter)?;
+                    let to_associated_token_account = next_account_info(account_info_iter)?;
+                    let owner = next_account_info(account_info_iter)?;
+                    let system_program = next_account_info(account_info_iter)?;
+                    let token_program = next_account_info(account_info_iter)?;
+                    let associated_token_program = next_account_info(account_info_iter)?;
+                    if to_associated_token_account.lamports() == 0 {
+                        // Creating associated token account for recipient.
+                        invoke(
+                            &associated_token_account_instruction::create_associated_token_account(
+                                payer.key,
+                                receiver_account.key,
+                                mint_account.key,
+                                token_program.key,
+                            ),
+                            &[
+                                mint_account.clone(),
+                                to_associated_token_account.clone(),
+                                receiver_account.clone(),
+                                payer.clone(),
+                                system_program.clone(),
+                                token_program.clone(),
+                                associated_token_program.clone(),
+                            ],
+                        )?;
+                    }
+                    msg!(
+                        "Recipient Associated Token Address: {}",
+                        to_associated_token_account.key
+                    );
+
+                    let token_amount = amount[i] as u64;
+
+                    invoke(
+                        &token_instruction::transfer(
+                            token_program.key,
+                            channel_associated_token_account.key,
+                            to_associated_token_account.key,
+                            owner.key,
+                            &[owner.key, receiver_account.key],
+                            token_amount,
+                        )?,
+                        &[
+                            mint_account.clone(),
+                            channel_associated_token_account.clone(),
+                            to_associated_token_account.clone(),
+                            owner.clone(),
+                            receiver_account.clone(),
+                            token_program.clone(),
+                        ],
+                    )?
+                }
             }
         }
     }

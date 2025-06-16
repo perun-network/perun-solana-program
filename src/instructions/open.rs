@@ -15,21 +15,22 @@
 use crate::{
     error::PerunError,
     state::{
+        multi::Chain,
         perun_types::{Channel, ChannelID, ChannelState, Control, Params},
         sol::get_channel_id_cross,
     },
 };
 
 use solana_program::{
-    account_info::{AccountInfo, next_account_info},
+    account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::invoke_signed,
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::{Sysvar, clock::Clock},
+    sysvar::{clock::Clock, Sysvar},
 };
 
 use borsh::BorshSerialize;
@@ -122,6 +123,44 @@ pub fn process_open(
         ]],
     )?;
     channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;
+
+    // Create the associated token accounts for the channel.
+    let tokens = &channel.state.balances.tokens;
+    for i in 0..tokens.len() {
+        let token = tokens.get(i).unwrap();
+        if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
+            if !token.is_native_sol() {
+                let mint_account = next_account_info(account_info_iter)?;
+                let channel_associated_token_account = next_account_info(account_info_iter)?;
+                let token_program = next_account_info(account_info_iter)?;
+                let associated_token_program = next_account_info(account_info_iter)?;
+
+                if channel_associated_token_account.lamports() == 0 {
+                    // Create associated token account for the channel.
+                    invoke(
+                        &spl_associated_token_account::instruction::create_associated_token_account(
+                            payer.key,
+                            channel_account.key,
+                            mint_account.key,
+                            token_program.key,
+                        ),
+                        &[
+                            mint_account.clone(),
+                            channel_associated_token_account.clone(),
+                            payer.clone(),
+                            system_program.clone(),
+                            token_program.clone(),
+                            associated_token_program.clone(),
+                        ],
+                    )?;
+                }
+                msg!(
+                    "Channel Associated Token Address: {}",
+                    channel_associated_token_account.key
+                );
+            }
+        }
+    }
 
     // 5. Emit open event.
     msg!(
