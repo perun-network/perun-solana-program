@@ -13,14 +13,13 @@
 //  limitations under the License.
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 
-use solana_program::pubkey::Pubkey;
+use solana_program::{pubkey::Pubkey, secp256k1_recover::secp256k1_recover};
 
 use crate::{error::PerunError, state::sol::AssetSol};
 
 use alloy_primitives::{
-    Address as EthAddress, Bytes as PrimBytes, FixedBytes, U256, Uint, keccak256,
+    keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Copy)]
@@ -60,36 +59,27 @@ impl ChannelPubKeyCross {
         sig: &[u8; 65],            // r || s || v (Ethereum-style)
     ) -> Result<(), PerunError> {
         // 1. Extract r,s (first 64 bytes) and v (last byte)
-        let r_s = &sig[0..64];
+        let r_s: &[u8; 64] = sig[0..64].try_into().unwrap();
         let v = sig[64];
-        if v > 1 {
-            return Err(PerunError::InvalidSignature.into());
-        }
+
+        let recovery_id = match v {
+            0 | 1 => v,
+            27 | 28 => v - 27,
+            _ => return Err(PerunError::InvalidSignature),
+        };
 
         let mut state_sol_abi: [u8; 32] = [0u8; 32];
         let ssl = msg_bytes.as_slice();
         state_sol_abi.copy_from_slice(&ssl);
 
-        // 2. Convert to Signature and RecoveryId
-        let signature =
-            Signature::from_slice(r_s).map_err(|_| PerunError::MalformedVerificationInput)?;
-        let recovery_id =
-            RecoveryId::try_from(v).map_err(|_| PerunError::MalformedVerificationInput)?;
-
         // 3. Recover public key
-        let recovered_key = VerifyingKey::recover_from_msg(&state_sol_abi, &signature, recovery_id)
+        let recovered_pub_key = secp256k1_recover(&state_sol_abi[..], recovery_id, r_s)
             .map_err(|_| PerunError::SecpRecoveryFailed)?;
+        // Compare to stored key, skipping the 0x04 prefix (first byte)
+        let expected_key = &self.key[1..]; // [X || Y], 64 bytes
 
-        // 4. Convert recovered key to uncompressed SEC1 format
-        let recovered_bytes = recovered_key.to_encoded_point(false); // false = uncompressed
-        let recovered_pubkey = recovered_bytes.as_bytes();
-
-        if recovered_pubkey.len() != 65 {
-            return Err(PerunError::SecpRecoveryFailed.into());
-        }
-
-        // 5. Compare recovered key to stored key
-        if &self.key == recovered_pubkey {
+        // 4. Compare recovered key to stored key
+        if recovered_pub_key.to_bytes() == expected_key {
             Ok(())
         } else {
             Err(PerunError::InvalidSignature.into())

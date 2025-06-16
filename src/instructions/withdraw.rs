@@ -22,7 +22,7 @@ use {
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
-        account_info::{AccountInfo, next_account_info},
+        account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
         program_error::ProgramError,
@@ -45,6 +45,7 @@ pub fn process_withdraw(
     accounts: &[AccountInfo],
     channel_id: ChannelID,
     party_idx: bool,
+    one_withdrawer: bool,
 ) -> ProgramResult {
     msg!(
         "Processing Withdraw instruction with program_id: {:?}, channel_id: {:?}, party_idx: {}",
@@ -99,7 +100,18 @@ pub fn process_withdraw(
             )
         }
     };
-    if payer.key != &receiver {
+
+    // Always authenticate as party B if oneWithdrawer is true
+    let actor = if one_withdrawer {
+        channel.params.b.solana_address.clone()
+    } else {
+        match party_idx {
+            A => channel.params.a.solana_address.clone(),
+            B => channel.params.b.solana_address.clone(),
+        }
+    };
+
+    if payer.key != &actor {
         msg!("Payer is not the actor");
         return Err(ProgramError::MissingRequiredSignature);
     }

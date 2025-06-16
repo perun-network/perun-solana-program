@@ -14,10 +14,10 @@
 //! Solidity <-> Solana data types.
 
 use crate::state::{ChannelID, Params, Participant};
-use alloy::{
-    primitives::{Address, Bytes as PrimBytes, U256, keccak256},
-    sol,
-    sol_types::SolValue,
+use {
+    alloy_primitives::{Address, Bytes as PrimBytes, U256, keccak256},
+    alloy_sol_types::SolValue,
+    alloy_sol_types::sol,
 };
 
 sol! {

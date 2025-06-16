@@ -27,12 +27,12 @@ use crate::{
 
 use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::{AccountInfo, next_account_info},
+    account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar::{Sysvar, clock::Clock},
+    sysvar::{clock::Clock, Sysvar},
 };
 
 /// Program state handler.
@@ -102,13 +102,21 @@ impl Processor {
             PerunInstruction::Withdraw {
                 channel_id,
                 party_idx,
+                one_withdrawer,
             } => {
                 msg!(
-                    "Processing Withdraw instruction with channel_id: {:?}, party_idx: {}",
+                    "Processing Withdraw instruction with channel_id: {:?}, party_idx: {}, one_withdrawer: {}",
                     channel_id,
                     party_idx,
+                    one_withdrawer,
                 );
-                withdraw::process_withdraw(program_id, accounts, channel_id, party_idx)
+                withdraw::process_withdraw(
+                    program_id,
+                    accounts,
+                    channel_id,
+                    party_idx,
+                    one_withdrawer,
+                )
             }
             PerunInstruction::AbortFunding { channel_id } => {
                 msg!(

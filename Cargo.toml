@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "perun-solana-program"
 authors = ["PolyCrypt GmbH <info@polycry.pt>"]
@@ -7,23 +5,24 @@ repository = "https://github.com/perun-network/perun-solana-program"
 description = " Perun state channel program on Solana"
 readme = "README.md"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
-[features]
-no-entrypoint = []
-test-sbf = []
 
 [lib]
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-alloy = "1.0.9"
-alloy-primitives = "1.2.0"
-alloy-sol-types = "1.2.0"
+alloy-sol-macro = "0.7.7"
+alloy-sol-types = { version = "0.7.7", default-features = false }
+alloy-primitives = { version = "0.7.7", default-features = false }
 borsh = { version = "1.5.7", features = ["derive"] }
-k256 = "0.13.4"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
-sha3 = "0.10.8"
 solana-program = "2.2.1"
 thiserror = "2.0.12"
+
+
+[dev-dependencies]
+base64ct = "=1.6.0"
+sha3 = "0.10.8"
+k256 = "=0.13.1"

@@ -40,6 +40,7 @@ pub enum PerunInstruction {
     Withdraw {
         channel_id: ChannelID,
         party_idx: bool,
+        one_withdrawer: bool,
     },
     AbortFunding {
         channel_id: ChannelID,
