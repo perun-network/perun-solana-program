@@ -19,3 +19,6 @@ pub mod processor;
 pub mod state;
 
 mod entrypoint;
+
+#[cfg(test)]
+mod test;
