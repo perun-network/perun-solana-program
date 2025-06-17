@@ -100,7 +100,12 @@ pub fn process_open(
     };
 
     let rent = Rent::get()?;
-    let channel_span = channel.get_size();
+    let channel_span = borsh::to_vec(&channel).unwrap().len();
+    msg!(
+        "Channel span: {}, required lamports: {}",
+        channel_span,
+        rent.minimum_balance(channel_span)
+    );
     let required_lamports = rent.minimum_balance(channel_span);
 
     invoke_signed(
@@ -123,51 +128,14 @@ pub fn process_open(
         ]],
     )?;
     channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;
-
-    // Create the associated token accounts for the channel.
-    let tokens = &channel.state.balances.tokens;
-    for i in 0..tokens.len() {
-        let token = tokens.get(i).unwrap();
-        if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
-            if !token.is_native_sol() {
-                let mint_account = next_account_info(account_info_iter)?;
-                let channel_associated_token_account = next_account_info(account_info_iter)?;
-                let token_program = next_account_info(account_info_iter)?;
-                let associated_token_program = next_account_info(account_info_iter)?;
-
-                if channel_associated_token_account.lamports() == 0 {
-                    // Create associated token account for the channel.
-                    invoke(
-                        &spl_associated_token_account::instruction::create_associated_token_account(
-                            payer.key,
-                            channel_account.key,
-                            mint_account.key,
-                            token_program.key,
-                        ),
-                        &[
-                            mint_account.clone(),
-                            channel_associated_token_account.clone(),
-                            payer.clone(),
-                            system_program.clone(),
-                            token_program.clone(),
-                            associated_token_program.clone(),
-                        ],
-                    )?;
-                }
-                msg!(
-                    "Channel Associated Token Address: {}",
-                    channel_associated_token_account.key
-                );
-            }
-        }
-    }
+    msg!(
+        "Channel created with PDA: {}, Bump: {}",
+        channel_pda,
+        chanenl_bump
+    );
 
     // 5. Emit open event.
-    msg!(
-        "Event: perun::open {:?}: state: {:?}",
-        cid,
-        channel.state.clone()
-    );
+    msg!("Event: perun::open {:?}", cid,);
 
     Ok(())
 }

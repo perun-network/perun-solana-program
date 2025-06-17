@@ -53,6 +53,7 @@ pub fn process_fund(
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA
     let (channel_pda, _bump) = Pubkey::find_program_address(
@@ -128,12 +129,15 @@ pub fn process_fund(
                 // lamport transfer
                 if amount[i] > 0 {
                     let lamports = amount[i] as u64;
-                    payer
-                        .try_borrow_mut_lamports()?
+                    // Subtract lamports from payer
+                    **payer.try_borrow_mut_lamports()? = payer
+                        .lamports()
                         .checked_sub(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
-                    channel_account
-                        .try_borrow_mut_lamports()?
+
+                    // Add lamports to channel account
+                    **channel_account.try_borrow_mut_lamports()? = channel_account
+                        .lamports()
                         .checked_add(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
                 }
@@ -142,30 +146,57 @@ pub fn process_fund(
                 let mint_account = next_account_info(account_info_iter)?;
                 let from_associated_token_account = next_account_info(account_info_iter)?;
                 let channel_associated_token_account = next_account_info(account_info_iter)?;
-                let owner = next_account_info(account_info_iter)?;
                 let token_program = next_account_info(account_info_iter)?;
+                let associated_token_program = next_account_info(account_info_iter)?;
                 if amount[i] > 0 {
                     let token_amount = amount[i] as u64;
-
+                    if channel_associated_token_account.lamports() == 0 {
+                        msg!(
+                            "Creating associated token account for channel: {}",
+                            channel_account.key
+                        );
+                        // Create associated token account for the channel.
+                        invoke(
+                        &spl_associated_token_account::instruction::create_associated_token_account(
+                            payer.key,
+                            channel_account.key,
+                            mint_account.key,
+                            token_program.key,
+                        ),
+                        &[
+                            mint_account.clone(),
+                            channel_associated_token_account.clone(),
+                            channel_account.clone(),
+                            payer.clone(),
+                            system_program.clone(),
+                            token_program.clone(),
+                            associated_token_program.clone(),
+                        ],
+                    )?;
+                    }
+                    msg!(
+                        "Channel Associated Token Address: {}",
+                        channel_associated_token_account.key
+                    );
                     invoke(
                         &token_instruction::transfer(
                             token_program.key,
                             from_associated_token_account.key,
                             channel_associated_token_account.key,
-                            owner.key,
-                            &[owner.key, channel_account.key],
+                            payer.key,
+                            &[payer.key],
                             token_amount,
                         )?,
                         &[
                             mint_account.clone(),
                             from_associated_token_account.clone(),
                             channel_associated_token_account.clone(),
-                            owner.clone(),
-                            channel_account.clone(),
+                            payer.clone(),
                             token_program.clone(),
                         ],
                     )?
                 }
+                msg!("Transferred");
             }
         }
     }
@@ -188,7 +219,7 @@ pub fn process_fund(
 }
 
 /// get_funded looks if other party has to fund
-fn get_funded(tokens: Vec<CrossAsset>, amount: Vec<i128>) -> bool {
+fn get_funded(tokens: Vec<CrossAsset>, amount: Vec<u64>) -> bool {
     let mut funded = true;
     for i in 0..tokens.len() {
         let token = tokens.get(i).unwrap();

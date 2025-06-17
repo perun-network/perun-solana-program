@@ -21,4 +21,4 @@ pub mod state;
 mod entrypoint;
 
 #[cfg(test)]
-mod test;
+mod tests;

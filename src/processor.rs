@@ -19,21 +19,10 @@ use crate::{
         abort_funding, close, dispute, force_close, fund, open,
         perun_instructions::PerunInstruction, withdraw,
     },
-    state::{
-        perun_types::{Channel, ChannelID, ChannelState, Control, Params},
-        sol::get_channel_id_cross,
-    },
 };
 
 use borsh::BorshDeserialize;
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint::ProgramResult,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    sysvar::{clock::Clock, Sysvar},
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
 /// Program state handler.
 pub struct Processor {}
@@ -48,11 +37,7 @@ impl Processor {
 
         match instruction {
             PerunInstruction::Open { params, state } => {
-                msg!(
-                    "Processing Open instruction with params: {:?} and state: {:?}",
-                    params,
-                    state
-                );
+                msg!("Processing Open instruction");
                 open::process_open(program_id, accounts, params, state)
             }
             PerunInstruction::Fund {

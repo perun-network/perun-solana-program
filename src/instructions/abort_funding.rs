@@ -114,12 +114,13 @@ pub fn process_abort_funding(
                 if token.is_native_sol() {
                     // Native SOL transfer.
                     let lamports = amount[i] as u64;
-                    channel_account
-                        .try_borrow_mut_lamports()?
+                    **channel_account.try_borrow_mut_lamports()? = channel_account
+                        .lamports()
                         .checked_sub(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
-                    payer
-                        .try_borrow_mut_lamports()?
+
+                    **payer.try_borrow_mut_lamports()? = payer
+                        .lamports()
                         .checked_add(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
                 } else {
@@ -183,7 +184,7 @@ pub fn process_abort_funding(
 
     // 4. Send the rent back to the creator of the channel account.
     let rent = Rent::get()?;
-    let channel_span = channel.get_size();
+    let channel_span = borsh::to_vec(&channel).unwrap().len();
     let required_lamports = rent.minimum_balance(channel_span);
     if &channel.control.creator != creator_account.key {
         msg!("Only the original creator can receive the rent");

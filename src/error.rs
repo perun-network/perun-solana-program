@@ -12,11 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //! Error types
-use {
-    num_derive::FromPrimitive,
-    solana_program::{msg, program_error::ProgramError},
-    thiserror::Error,
-};
+use {num_derive::FromPrimitive, solana_program::program_error::ProgramError, thiserror::Error};
 /// Errors that may be returned by the Perun program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq, PartialOrd, Ord)]
 pub enum PerunError {

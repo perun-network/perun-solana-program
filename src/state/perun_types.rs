@@ -17,13 +17,13 @@ use std::fmt::Display;
 use crate::{
     error::PerunError,
     state::{
-        CrossAsset,
-        multi::{Chain, convert_cross_assets},
+        multi::{convert_cross_assets, Chain},
         sol::{AllocationSol, StateSol},
+        CrossAsset,
     },
 };
 use alloy_primitives::{
-    Address as EthAddress, Bytes as PrimBytes, FixedBytes, U256, Uint, keccak256,
+    keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
 };
 use alloy_sol_types::SolValue;
 
@@ -66,15 +66,8 @@ pub struct Balances {
     // token represents a channel's asset / currency. Currently this contract
     // supports single-asset channels, but multi-asset support is possible.
     pub tokens: Vec<CrossAsset>,
-    pub bal_a: Vec<i128>,
-    pub bal_b: Vec<i128>,
-}
-impl Balances {
-    pub fn get_size(&self) -> usize {
-        let tokens_len = self.tokens.len();
-        let size_in_bytes = std::mem::size_of::<usize>();
-        size_in_bytes + (tokens_len * (CrossAsset::SPACE + 16 + 16))
-    }
+    pub bal_a: Vec<u64>,
+    pub bal_b: Vec<u64>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq)]
@@ -90,9 +83,6 @@ pub struct Params {
     // and the relative time lock is expired (i.e. the last dispute was at least challenge_duration
     // seconds ago).
     pub challenge_duration: u64,
-}
-impl Params {
-    pub const SPACE: usize = Participant::SPACE * 2 + 32 + 8; // 2 participants + nonce + challenge_duration
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq)]
@@ -111,14 +101,6 @@ pub struct ChannelState {
     pub finalized: bool,
 }
 impl ChannelState {
-    pub fn get_size(&self) -> usize {
-        let channel_id_size = 32; // 32 bytes
-        let balances_size = self.balances.get_size();
-        let version_size = 8; // 8 bytes
-        let finalized_size = 1; // 1 byte
-        channel_id_size + balances_size + version_size + finalized_size
-    }
-
     pub fn convert_allocation(&self) -> Result<AllocationSol, PerunError> {
         // Ensure that there are exactly two cross-chain assets
         let cross_assets = self.balances.tokens.clone();
@@ -276,14 +258,6 @@ pub struct Channel {
 
 impl Channel {
     pub const SEED_PREFIX: &'static str = "channel";
-
-    /// get_size returns the dynamic size of the channel in bytes.
-    pub fn get_size(&self) -> usize {
-        let params_size = Params::SPACE;
-        let state_size = self.state.get_size();
-        let control_size = Control::SPACE;
-        params_size + state_size + control_size
-    }
 
     /// is_funded checks if both participants have funded the channel.
     pub fn is_funded(&self) -> bool {

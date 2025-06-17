@@ -137,12 +137,13 @@ pub fn process_withdraw(
                 if token.is_native_sol() {
                     // Native SOL transfer
                     let lamports = amount[i] as u64;
-                    channel_account
-                        .try_borrow_mut_lamports()?
+                    **channel_account.try_borrow_mut_lamports()? = channel_account
+                        .lamports()
                         .checked_sub(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
-                    receiver_account
-                        .try_borrow_mut_lamports()?
+
+                    **receiver_account.try_borrow_mut_lamports()? = receiver_account
+                        .lamports()
                         .checked_add(lamports)
                         .ok_or(ProgramError::InsufficientFunds)?;
                 } else {
@@ -213,7 +214,7 @@ pub fn process_withdraw(
     // 4. Return rent to the creator account (if all funds are withdrawn).
     if channel.is_withdrawn() {
         let rent = Rent::get()?;
-        let channel_span = channel.get_size();
+        let channel_span = borsh::to_vec(channel).unwrap().len();
         let required_lamports = rent.minimum_balance(channel_span);
         if &channel.control.creator != creator_account.key {
             msg!("Only the original creator can receive the rent");
