@@ -71,7 +71,7 @@ impl Test {
             .expect("Failed to process open transaction");
     }
 
-    pub async fn fund(&mut self, party_idx: bool) {
+    pub async fn fund(&mut self, party_idx: bool, mixed_assets: bool) {
         // Derive channel PDA
         let (channel_pda, _bump) = Pubkey::find_program_address(
             &[Channel::SEED_PREFIX.as_bytes(), self.channel_id.as_bytes()],
@@ -84,72 +84,118 @@ impl Test {
             self.token_addresses.get(0).unwrap(),
             &spl_token::id(),
         );
-        let cata_1 = get_associated_token_address_with_program_id(
-            &channel_pda,
-            self.token_addresses.get(1).unwrap(),
-            &spl_token::id(),
-        );
 
         let actor;
         let actor_kp: &Keypair;
-        let actor_ata_0;
-        let actor_ata_1;
-        if party_idx {
-            // Fund for party B
-            actor = self.bob.solana_address;
-            actor_kp = &self.bob_keypair.solana_signer;
-            actor_ata_0 = get_associated_token_address_with_program_id(
-                &self.bob.solana_address,
-                self.token_addresses.get(0).unwrap(),
-                &spl_token::id(),
-            );
-            actor_ata_1 = get_associated_token_address_with_program_id(
-                &self.bob.solana_address,
+        let fund_ix;
+        if !mixed_assets {
+            // If mixed assets, create associated token account for the second token
+            let cata_1 = get_associated_token_address_with_program_id(
+                &channel_pda,
                 self.token_addresses.get(1).unwrap(),
                 &spl_token::id(),
+            );
+
+            let actor_ata_0;
+            let actor_ata_1;
+            if party_idx {
+                // Fund for party B
+                actor = self.bob.solana_address;
+                actor_kp = &self.bob_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+                actor_ata_1 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(1).unwrap(),
+                    &spl_token::id(),
+                );
+            } else {
+                // Fund for party A
+                actor = self.alice.solana_address;
+                actor_kp = &self.alice_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+                actor_ata_1 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(1).unwrap(),
+                    &spl_token::id(),
+                );
+            }
+
+            // Serialize fund instruction
+            fund_ix = Instruction::new_with_borsh(
+                self.program_id,
+                &PerunInstruction::Fund {
+                    channel_id: self.channel_id.clone(),
+                    party_idx,
+                },
+                vec![
+                    AccountMeta::new(channel_pda, false),
+                    AccountMeta::new(actor, true),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    // For token 0
+                    AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_0, false),
+                    AccountMeta::new(cata_0, false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                    // For token 1
+                    AccountMeta::new(self.token_addresses.get(1).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_1, false),
+                    AccountMeta::new(cata_1, false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                ],
             );
         } else {
-            // Fund for party A
-            actor = self.alice.solana_address;
-            actor_kp = &self.alice_keypair.solana_signer;
-            actor_ata_0 = get_associated_token_address_with_program_id(
-                &self.alice.solana_address,
-                self.token_addresses.get(0).unwrap(),
-                &spl_token::id(),
-            );
-            actor_ata_1 = get_associated_token_address_with_program_id(
-                &self.alice.solana_address,
-                self.token_addresses.get(1).unwrap(),
-                &spl_token::id(),
+            let actor_ata_0;
+
+            if party_idx {
+                // Fund for party B
+                actor = self.bob.solana_address;
+                actor_kp = &self.bob_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+            } else {
+                // Fund for party A
+                actor = self.alice.solana_address;
+                actor_kp = &self.alice_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+            }
+
+            // Serialize fund instruction
+            fund_ix = Instruction::new_with_borsh(
+                self.program_id,
+                &PerunInstruction::Fund {
+                    channel_id: self.channel_id.clone(),
+                    party_idx,
+                },
+                vec![
+                    AccountMeta::new(channel_pda, false),
+                    AccountMeta::new(actor, true),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    // For token 0
+                    AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_0, false),
+                    AccountMeta::new(cata_0, false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                ],
             );
         }
-
-        // Serialize fund instruction
-        let fund_ix = Instruction::new_with_borsh(
-            self.program_id,
-            &PerunInstruction::Fund {
-                channel_id: self.channel_id.clone(),
-                party_idx,
-            },
-            vec![
-                AccountMeta::new(channel_pda, false),
-                AccountMeta::new(actor, true),
-                AccountMeta::new_readonly(system_program::id(), false),
-                // For token 0
-                AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
-                AccountMeta::new(actor_ata_0, false),
-                AccountMeta::new(cata_0, false),
-                AccountMeta::new_readonly(spl_token::id(), false),
-                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
-                AccountMeta::new(self.token_addresses.get(1).unwrap().clone(), false),
-                // For token 1
-                AccountMeta::new(actor_ata_1, false),
-                AccountMeta::new(cata_1, false),
-                AccountMeta::new_readonly(spl_token::id(), false),
-                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
-            ],
-        );
-
         // Create and send the transaction
         let tx = Transaction::new_signed_with_payer(
             &[fund_ix],
@@ -202,5 +248,151 @@ impl Test {
             .process_transaction(tx)
             .await
             .expect("Failed to process close transaction");
+    }
+
+    pub async fn withdraw(&mut self, party_idx: bool, one_withdrawer: bool, mixed_assets: bool) {
+        // Derive channel PDA
+        let (channel_pda, _bump) = Pubkey::find_program_address(
+            &[Channel::SEED_PREFIX.as_bytes(), self.channel_id.as_bytes()],
+            &self.program_id,
+        );
+
+        // Create channel associated token account
+        let cata_0 = get_associated_token_address_with_program_id(
+            &channel_pda,
+            self.token_addresses.get(0).unwrap(),
+            &spl_token::id(),
+        );
+
+        let actor;
+        let actor_kp: &Keypair;
+        let actor_ata_0;
+        let withdraw_ix;
+        if !mixed_assets {
+            let cata_1 = get_associated_token_address_with_program_id(
+                &channel_pda,
+                self.token_addresses.get(1).unwrap(),
+                &spl_token::id(),
+            );
+
+            let actor_ata_1;
+            if party_idx {
+                // Withdraw for party B
+                actor = self.bob.solana_address;
+                actor_kp = &self.bob_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+                actor_ata_1 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(1).unwrap(),
+                    &spl_token::id(),
+                );
+            } else {
+                // Withdraw for party A
+                actor = self.alice.solana_address;
+                actor_kp = &self.alice_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+                actor_ata_1 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(1).unwrap(),
+                    &spl_token::id(),
+                );
+            }
+
+            // Serialize withdraw instruction
+            withdraw_ix = Instruction::new_with_borsh(
+                self.program_id,
+                &PerunInstruction::Withdraw {
+                    channel_id: self.channel_id.clone(),
+                    party_idx,
+                    one_withdrawer,
+                },
+                vec![
+                    AccountMeta::new(channel_pda, false),
+                    AccountMeta::new(actor, true),
+                    // For token 0
+                    AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_0, false),
+                    AccountMeta::new(cata_0, false),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                    // For token 1
+                    AccountMeta::new(self.token_addresses.get(1).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_1, false),
+                    AccountMeta::new(cata_1, false),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                    // Channel Creator
+                    AccountMeta::new(self.alice.solana_address, false),
+                ],
+            );
+        } else {
+            if party_idx {
+                // Withdraw for party B
+                actor = self.bob.solana_address;
+                actor_kp = &self.bob_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.bob.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+            } else {
+                // Withdraw for party A
+                actor = self.alice.solana_address;
+                actor_kp = &self.alice_keypair.solana_signer;
+                actor_ata_0 = get_associated_token_address_with_program_id(
+                    &self.alice.solana_address,
+                    self.token_addresses.get(0).unwrap(),
+                    &spl_token::id(),
+                );
+            }
+
+            // Serialize withdraw instruction
+            withdraw_ix = Instruction::new_with_borsh(
+                self.program_id,
+                &PerunInstruction::Withdraw {
+                    channel_id: self.channel_id.clone(),
+                    party_idx,
+                    one_withdrawer,
+                },
+                vec![
+                    AccountMeta::new(channel_pda, false),
+                    AccountMeta::new(actor, true),
+                    // For token 0
+                    AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
+                    AccountMeta::new(actor_ata_0, false),
+                    AccountMeta::new(cata_0, false),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                    // Channel Creator
+                    AccountMeta::new(self.alice.solana_address, false),
+                ],
+            );
+        }
+        let tx = Transaction::new_signed_with_payer(
+            &[withdraw_ix],
+            Some(&actor),
+            &[actor_kp],
+            self.program_test_ctx
+                .banks_client
+                .get_latest_blockhash()
+                .await
+                .unwrap(),
+        );
+        self.program_test_ctx
+            .banks_client
+            .process_transaction(tx)
+            .await
+            .expect("Failed to process withdraw transaction");
     }
 }

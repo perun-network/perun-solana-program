@@ -25,7 +25,7 @@ use {
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
-        program::invoke,
+        program::{invoke, invoke_signed},
         program_error::ProgramError,
         pubkey::Pubkey,
         rent::Rent,
@@ -50,21 +50,12 @@ pub fn process_withdraw(
     party_idx: bool,
     one_withdrawer: bool,
 ) -> ProgramResult {
-    msg!(
-        "Processing Withdraw instruction with program_id: {:?}, channel_id: {:?}, party_idx: {}",
-        program_id,
-        channel_id,
-        party_idx,
-    );
-
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
-    let receiver_account = next_account_info(account_info_iter)?;
-    let creator_account = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA.
-    let (channel_pda, _bump) = Pubkey::find_program_address(
+    let (channel_pda, bump) = Pubkey::find_program_address(
         &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_bytes()],
         program_id,
     );
@@ -105,25 +96,28 @@ pub fn process_withdraw(
         }
     };
 
-    // Always authenticate as party B if oneWithdrawer is true
-    let actor = if one_withdrawer {
-        channel.params.b.solana_address.clone()
+    let actor;
+    let receiver_account;
+    if one_withdrawer {
+        actor = channel.params.b.solana_address;
+        receiver_account = next_account_info(account_info_iter)?;
+        if receiver_account.key != &receiver {
+            msg!("Receiver account mismatch");
+            return Err(ProgramError::InvalidArgument);
+        }
     } else {
-        match party_idx {
+        actor = match party_idx {
             A => channel.params.a.solana_address.clone(),
             B => channel.params.b.solana_address.clone(),
-        }
-    };
-
+        };
+        receiver_account = payer; // Payer is the receiver in this case
+    }
+    // Always authenticate as party B if oneWithdrawer is true
     if payer.key != &actor {
         msg!("Payer is not the actor");
         return Err(ProgramError::MissingRequiredSignature);
     }
     if !payer.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    if receiver_account.key != &receiver {
-        msg!("Receiver is not the actor");
         return Err(ProgramError::MissingRequiredSignature);
     }
 
@@ -149,13 +143,16 @@ pub fn process_withdraw(
                 } else {
                     // SPL token transfer
                     let mint_account = next_account_info(account_info_iter)?;
-                    let channel_associated_token_account = next_account_info(account_info_iter)?;
                     let to_associated_token_account = next_account_info(account_info_iter)?;
-                    let owner = next_account_info(account_info_iter)?;
+                    let channel_associated_token_account = next_account_info(account_info_iter)?;
                     let system_program = next_account_info(account_info_iter)?;
                     let token_program = next_account_info(account_info_iter)?;
                     let associated_token_program = next_account_info(account_info_iter)?;
                     if to_associated_token_account.lamports() == 0 {
+                        msg!(
+                            "Creating associated token account for receiver: {}",
+                            to_associated_token_account.key
+                        );
                         // Creating associated token account for recipient.
                         invoke(
                             &associated_token_account_instruction::create_associated_token_account(
@@ -181,24 +178,28 @@ pub fn process_withdraw(
                     );
 
                     let token_amount = amount[i] as u64;
-
-                    invoke(
+                    // Seeds for channel PDA signing
+                    let seeds = &[
+                        Channel::SEED_PREFIX.as_bytes(),
+                        channel_id.as_bytes(),
+                        &[bump],
+                    ];
+                    invoke_signed(
                         &token_instruction::transfer(
                             token_program.key,
                             channel_associated_token_account.key,
                             to_associated_token_account.key,
-                            owner.key,
-                            &[owner.key, receiver_account.key],
+                            &channel_pda,
+                            &[],
                             token_amount,
                         )?,
                         &[
-                            mint_account.clone(),
                             channel_associated_token_account.clone(),
                             to_associated_token_account.clone(),
-                            owner.clone(),
-                            receiver_account.clone(),
+                            channel_account.clone(),
                             token_program.clone(),
                         ],
+                        &[seeds],
                     )?
                 }
             }
@@ -213,6 +214,8 @@ pub fn process_withdraw(
 
     // 4. Return rent to the creator account (if all funds are withdrawn).
     if channel.is_withdrawn() {
+        msg!("All funds withdrawn, returning rent to creator");
+        let creator_account = next_account_info(account_info_iter)?;
         let rent = Rent::get()?;
         let channel_span = borsh::to_vec(channel).unwrap().len();
         let required_lamports = rent.minimum_balance(channel_span);
@@ -220,13 +223,13 @@ pub fn process_withdraw(
             msg!("Only the original creator can receive the rent");
             return Err(ProgramError::IllegalOwner);
         }
-        creator_account
-            .try_borrow_mut_lamports()?
-            .checked_add(required_lamports)
-            .ok_or(ProgramError::InsufficientFunds)?;
-        channel_account
-            .try_borrow_mut_lamports()?
+        **channel_account.try_borrow_mut_lamports()? = channel_account
+            .lamports()
             .checked_sub(required_lamports)
+            .ok_or(ProgramError::InsufficientFunds)?;
+        **creator_account.try_borrow_mut_lamports()? = creator_account
+            .lamports()
+            .checked_add(required_lamports)
             .ok_or(ProgramError::InsufficientFunds)?;
 
         // 5. Close the channel account.

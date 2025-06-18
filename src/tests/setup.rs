@@ -30,14 +30,8 @@ use {
     solana_program::program_pack::Pack,
     solana_program_test::*,
     solana_sdk::{
-        account::Account as SolanaAccount,
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-        signature::Signer,
-        signer::keypair::Keypair,
-        system_instruction, system_program,
-        sysvar::rent::Rent,
-        transaction::Transaction,
+        account::Account as SolanaAccount, pubkey::Pubkey, signature::Signer,
+        signer::keypair::Keypair, system_instruction, sysvar::rent::Rent, transaction::Transaction,
         transport::TransportError,
     },
     spl_associated_token_account::{

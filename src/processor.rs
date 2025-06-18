@@ -37,18 +37,24 @@ impl Processor {
 
         match instruction {
             PerunInstruction::Open { params, state } => {
-                msg!("Processing Open instruction");
+                msg!("OPEN");
                 open::process_open(program_id, accounts, params, state)
             }
             PerunInstruction::Fund {
                 channel_id,
                 party_idx,
-            } => fund::process_fund(program_id, accounts, channel_id, party_idx),
+            } => {
+                msg!("FUND");
+                fund::process_fund(program_id, accounts, channel_id, party_idx)
+            }
             PerunInstruction::Close {
                 state,
                 sig_a,
                 sig_b,
-            } => close::process_close(program_id, accounts, state, sig_a, sig_b),
+            } => {
+                msg!("CLOSE");
+                close::process_close(program_id, accounts, state, sig_a, sig_b)
+            }
             PerunInstruction::ForceClose { channel_id } => {
                 msg!(
                     "Processing ForceClose instruction with channel_id: {:?}",
@@ -74,12 +80,7 @@ impl Processor {
                 party_idx,
                 one_withdrawer,
             } => {
-                msg!(
-                    "Processing Withdraw instruction with channel_id: {:?}, party_idx: {}, one_withdrawer: {}",
-                    channel_id,
-                    party_idx,
-                    one_withdrawer,
-                );
+                msg!("WITHDRAW");
                 withdraw::process_withdraw(
                     program_id,
                     accounts,

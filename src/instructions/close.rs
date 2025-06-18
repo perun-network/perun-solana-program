@@ -21,14 +21,12 @@ use {
         },
     },
     borsh::{BorshDeserialize, BorshSerialize},
-    solana_instructions_sysvar::load_instruction_at_checked,
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
         program_error::ProgramError,
         pubkey::Pubkey,
-        secp256k1_program,
     },
 };
 

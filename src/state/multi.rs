@@ -20,8 +20,6 @@ use solana_program::{
 };
 
 use crate::{error::PerunError, state::sol::AssetSol};
-use solana_instructions_sysvar::load_instruction_at_checked;
-use solana_sdk_ids::secp256k1_program;
 
 use alloy_primitives::{
     keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
