@@ -14,10 +14,16 @@
 
 use {
     crate::tests::setup::Test,
-    crate::{instructions::perun_instructions::PerunInstruction, state::Channel},
+    crate::{
+        instructions::perun_instructions::PerunInstruction,
+        state::{Channel, ChannelState},
+    },
+    alloy_primitives::keccak256,
+    alloy_sol_types::SolValue,
     solana_sdk::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        secp256k1_program,
         signature::Signer,
         signer::keypair::Keypair,
         system_program,
@@ -133,14 +139,12 @@ impl Test {
                 AccountMeta::new(self.token_addresses.get(0).unwrap().clone(), false),
                 AccountMeta::new(actor_ata_0, false),
                 AccountMeta::new(cata_0, false),
-                AccountMeta::new(self.program_test_ctx.payer.pubkey(), true),
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(spl_associated_token_account::id(), false),
                 AccountMeta::new(self.token_addresses.get(1).unwrap().clone(), false),
                 // For token 1
                 AccountMeta::new(actor_ata_1, false),
                 AccountMeta::new(cata_1, false),
-                AccountMeta::new(self.program_test_ctx.payer.pubkey(), true),
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(spl_associated_token_account::id(), false),
             ],
@@ -150,7 +154,7 @@ impl Test {
         let tx = Transaction::new_signed_with_payer(
             &[fund_ix],
             Some(&actor),
-            &[actor_kp, &self.program_test_ctx.payer],
+            &[actor_kp],
             self.program_test_ctx
                 .banks_client
                 .get_latest_blockhash()
@@ -162,5 +166,41 @@ impl Test {
             .process_transaction(tx)
             .await
             .expect("Failed to process fund transaction");
+    }
+
+    pub async fn close(&mut self, state: ChannelState, sig_a: [u8; 65], sig_b: [u8; 65]) {
+        // Derive channel PDA
+        let (channel_pda, _bump) = Pubkey::find_program_address(
+            &[Channel::SEED_PREFIX.as_bytes(), self.channel_id.as_bytes()],
+            &self.program_id,
+        );
+
+        // Serialize close instruction
+        let close_ix = Instruction::new_with_borsh(
+            self.program_id,
+            &PerunInstruction::Close {
+                state,
+                sig_a,
+                sig_b,
+            },
+            vec![AccountMeta::new(channel_pda, false)],
+        );
+
+        // Create and send the transaction
+        let tx = Transaction::new_signed_with_payer(
+            &[close_ix],
+            Some(&self.alice.solana_address),
+            &[&self.alice_keypair.solana_signer],
+            self.program_test_ctx
+                .banks_client
+                .get_latest_blockhash()
+                .await
+                .unwrap(),
+        );
+        self.program_test_ctx
+            .banks_client
+            .process_transaction(tx)
+            .await
+            .expect("Failed to process close transaction");
     }
 }

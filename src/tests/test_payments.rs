@@ -54,4 +54,20 @@ pub async fn test_honest_payment_cross_sameasset() {
     t.fund(true).await;
     t.verify_bal_contract(bal_contract_after_bfund).await;
     t.verify_bal_b(bal_b_after_bfund).await;
+
+    // Update channel off-chain.
+    t.send_to_a(to_send_a);
+
+    // Finalize the channel.
+    t.finalize();
+
+    // Sign the final state off-chain.
+    let sig_a_cc = t.sigs_cc_abi_a();
+    let sig_b_cc = t.sigs_cc_abi_b();
+
+    // Call the close instruction on-chain.
+    t.close(t.state.clone(), sig_a_cc.clone(), sig_b_cc.clone())
+        .await;
+    t.verify_state(&t.state).await;
+    t.verify_bal_contract(bal_contract_after_final).await;
 }

@@ -14,9 +14,14 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use solana_program::{pubkey::Pubkey, secp256k1_recover::secp256k1_recover};
+use solana_program::{
+    account_info::AccountInfo, instruction::Instruction, pubkey::Pubkey,
+    secp256k1_recover::secp256k1_recover,
+};
 
 use crate::{error::PerunError, state::sol::AssetSol};
+use solana_instructions_sysvar::load_instruction_at_checked;
+use solana_sdk_ids::secp256k1_program;
 
 use alloy_primitives::{
     keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
@@ -61,8 +66,8 @@ pub struct ChannelPubKeyCross {
 impl ChannelPubKeyCross {
     pub fn verify_signature_cross(
         &self,
-        msg_bytes: FixedBytes<32>, // 32-byte message hash (e.g., keccak256(data))],
-        sig: &[u8; 65],            // r || s || v (Ethereum-style)
+        msg_bytes: &[u8; 32], // 32-byte message hash (e.g., keccak256(data))],
+        sig: &[u8; 65],       // r || s || v (Ethereum-style)
     ) -> Result<(), PerunError> {
         // 1. Extract r,s (first 64 bytes) and v (last byte)
         let r_s: &[u8; 64] = sig[0..64].try_into().unwrap();
@@ -74,12 +79,8 @@ impl ChannelPubKeyCross {
             _ => return Err(PerunError::InvalidSignature),
         };
 
-        let mut state_sol_abi: [u8; 32] = [0u8; 32];
-        let ssl = msg_bytes.as_slice();
-        state_sol_abi.copy_from_slice(&ssl);
-
         // 3. Recover public key
-        let recovered_pub_key = secp256k1_recover(&state_sol_abi[..], recovery_id, r_s)
+        let recovered_pub_key = secp256k1_recover(&msg_bytes[..], recovery_id, r_s)
             .map_err(|_| PerunError::SecpRecoveryFailed)?;
         // Compare to stored key, skipping the 0x04 prefix (first byte)
         let expected_key = &self.key[1..]; // [X || Y], 64 bytes

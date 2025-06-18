@@ -24,6 +24,8 @@ spl-associated-token-account = { version = "7.0.0", features = [
     "no-entrypoint",
 ] }
 spl-token = { version = "8.0.0", features = ["no-entrypoint"] }
+solana-sdk-ids = "2.2.1"
+solana-instructions-sysvar = "2.2.1"
 
 [dev-dependencies]
 base64ct = "=1.6.0"

@@ -21,12 +21,14 @@ use {
         },
     },
     borsh::{BorshDeserialize, BorshSerialize},
+    solana_instructions_sysvar::load_instruction_at_checked,
     solana_program::{
-        account_info::{AccountInfo, next_account_info},
+        account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
         program_error::ProgramError,
         pubkey::Pubkey,
+        secp256k1_program,
     },
 };
 
@@ -37,14 +39,6 @@ pub fn process_close(
     sig_a: [u8; 65],
     sig_b: [u8; 65],
 ) -> ProgramResult {
-    msg!(
-        "Processing Close instruction with program_id: {:?}, state: {:?}, sig_a: {:?}, sig_b: {:?}",
-        program_id,
-        state,
-        sig_a,
-        sig_b
-    );
-
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
 
@@ -60,46 +54,54 @@ pub fn process_close(
     }
 
     // 2. Deserialize and validate.
-    let channel = &mut Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
+    {
+        let data = channel_account.try_borrow_data()?;
+        let channel = Channel::try_from_slice(&data)?;
 
-    if !state.finalized {
-        msg!("Channel state is not finalized");
-        return Err(PerunError::CloseOnNonFinalState.into());
+        if !state.finalized {
+            msg!("Channel state is not finalized");
+            return Err(PerunError::CloseOnNonFinalState.into());
+        }
+
+        if !channel.is_funded() {
+            msg!("Channel is not funded");
+            return Err(PerunError::OperationOnUnfundedChannel.into());
+        }
+        // 3. Verify both parties' signatures on the submitted final state.
+        let hash = state.hash_state_eth_prefixed()?;
+
+        let pub_key_a = ChannelPubKeyCross {
+            key: channel.params.a.l2_pubkey,
+        };
+        let pub_key_b = ChannelPubKeyCross {
+            key: channel.params.b.l2_pubkey,
+        };
+
+        pub_key_a
+            .verify_signature_cross(&hash, &sig_a)
+            .map_err(|_| PerunError::InvalidSignature)?;
+
+        pub_key_b
+            .verify_signature_cross(&hash, &sig_b)
+            .map_err(|_| PerunError::InvalidSignature)?;
     }
-
-    if !channel.is_funded() {
-        msg!("Channel is not funded");
-        return Err(PerunError::OperationOnUnfundedChannel.into());
-    }
-
-    // 3. Verify both parties' signatures on the submitted final state.
-    let hash = state.hash_state_eth_prefixed()?;
-
-    let pub_key_a = ChannelPubKeyCross {
-        key: channel.params.a.l2_pubkey.clone(),
-    };
-    let pub_key_b = ChannelPubKeyCross {
-        key: channel.params.b.l2_pubkey.clone(),
-    };
-    pub_key_a
-        .verify_signature_cross(hash.clone(), &sig_a)
-        .map_err(|_| PerunError::InvalidSignature)?;
-
-    pub_key_b
-        .verify_signature_cross(hash, &sig_b)
-        .map_err(|_| PerunError::InvalidSignature)?;
+    msg!("Signatures verified successfully");
 
     // 4. Update channel state to closed.
-    channel.control.closed = true;
-    channel.state = state.clone();
-    channel.serialize(&mut &mut channel_account.try_borrow_mut_data()?[..])?;
+    let mut data_mut = channel_account.try_borrow_mut_data()?;
+    let channel_mut = Channel::try_from_slice(&data_mut)?;
+
+    // Update channel state
+    let mut updated_channel = channel_mut;
+    updated_channel.control.closed = true;
+    updated_channel.state.version = state.version;
+    updated_channel.state.balances.bal_a = state.balances.bal_a;
+    updated_channel.state.balances.bal_b = state.balances.bal_b;
+    updated_channel.state.finalized = state.finalized;
+    updated_channel.serialize(&mut &mut data_mut[..])?;
 
     // 5. Emit close event.
-    msg!(
-        "Event: perun:close channel_id: {:#?}: state {:?}",
-        state.channel_id,
-        state.clone()
-    );
+    msg!("Event: perun:close channel_id: {:?}", state.channel_id,);
 
     Ok(())
 }

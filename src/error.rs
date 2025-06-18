@@ -55,6 +55,9 @@ pub enum PerunError {
     #[error("Invalid signature")]
     InvalidSignature,
 
+    #[error("Invalid hash")]
+    InvalidHash,
+
     #[error("Operation not allowed on unfunded channel")]
     OperationOnUnfundedChannel,
 

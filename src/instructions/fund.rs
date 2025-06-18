@@ -44,12 +44,6 @@ pub fn process_fund(
     channel_id: ChannelID,
     party_idx: bool,
 ) -> ProgramResult {
-    msg!(
-        "Processing Fund instruction with program_id: {:?}, channel_id: {:?}, party_idx: {}",
-        program_id,
-        channel_id,
-        party_idx
-    );
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
@@ -65,52 +59,57 @@ pub fn process_fund(
         msg!("Wrong PDA passed");
         return Err(ProgramError::InvalidArgument);
     }
+    // 2. Deserialize and mutate channel state in a limited scope
+    let (expected_funder, amount, tokens) = {
+        let mut data = channel_account.try_borrow_mut_data()?;
+        let mut channel = Channel::try_from_slice(&data)?;
 
-    let channel = &mut Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
-    // 2. Fund the with the corresponding party index
-    let (expected_funder, amount) = match party_idx {
-        A => {
-            // Fund for party A.
-            // Verify that A has not yet been funded.
-            if channel.control.funded_a {
-                return Err(PerunError::AlreadyFunded.into());
-            }
-
-            // Set A's funded status to true.
-            // Note that the transaction is rolled back, if funding fails at a later point,
-            // so doing this now is not a problem.
-            channel.control.funded_a = true;
-            let other_funded = get_funded(
-                channel.state.balances.tokens.clone(),
-                channel.state.balances.bal_b.clone(),
-            );
-            if other_funded {
-                channel.control.funded_b = true;
-            }
-            (
-                channel.params.a.solana_address.clone(),
-                channel.state.balances.bal_a.clone(),
-            )
-        }
-        B => {
-            // Fund for party B.
-            if channel.control.funded_b {
-                return Err(PerunError::AlreadyFunded.into());
-            }
-            channel.control.funded_b = true; // effect
-            let other_funded = get_funded(
-                channel.state.balances.tokens.clone(),
-                channel.state.balances.bal_a.clone(),
-            );
-            if other_funded {
+        let (expected_funder, amount) = match party_idx {
+            A => {
+                if channel.control.funded_a {
+                    return Err(PerunError::AlreadyFunded.into());
+                }
                 channel.control.funded_a = true;
+                let other_funded = get_funded(
+                    channel.state.balances.tokens.as_slice(),
+                    channel.state.balances.bal_b.as_slice(),
+                );
+                if other_funded {
+                    channel.control.funded_b = true;
+                }
+                (
+                    channel.params.a.solana_address.clone(),
+                    channel.state.balances.bal_a.clone(),
+                )
             }
-            (
-                channel.params.b.solana_address.clone(),
-                channel.state.balances.bal_b.clone(),
-            )
-        }
-    };
+            B => {
+                if channel.control.funded_b {
+                    return Err(PerunError::AlreadyFunded.into());
+                }
+                channel.control.funded_b = true;
+                let other_funded = get_funded(
+                    channel.state.balances.tokens.as_slice(),
+                    channel.state.balances.bal_a.as_slice(),
+                );
+                if other_funded {
+                    channel.control.funded_a = true;
+                }
+                (
+                    channel.params.b.solana_address.clone(),
+                    channel.state.balances.bal_b.clone(),
+                )
+            }
+        };
+
+        channel.serialize(&mut &mut data[..])?;
+
+        // Return needed values and tokens reference (clone tokens vec for safety)
+        (
+            expected_funder,
+            amount,
+            channel.state.balances.tokens.clone(),
+        )
+    }; // `data` mutable borrow dropped here
 
     // 3. Verify signer is the expected funder
     if payer.key != &expected_funder {
@@ -121,7 +120,6 @@ pub fn process_fund(
     }
 
     // 3. Transfer the funds to the channel account.
-    let tokens = &channel.state.balances.tokens;
     for i in 0..tokens.len() {
         let token = tokens.get(i).unwrap();
         if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
@@ -196,30 +194,22 @@ pub fn process_fund(
                         ],
                     )?
                 }
-                msg!("Transferred");
             }
         }
     }
-    channel.serialize(&mut &mut channel_account.try_borrow_mut_data()?[..])?;
 
     // 4. Emit fund event.
     msg!(
-        "Event: perun::fund channel {:?} for party {:?} with amount: {:?} and state {:?}",
+        "Event: perun::fund channel {:?} for party {:?}",
         channel_id,
         if party_idx { "B" } else { "A" },
-        amount,
-        channel.state.clone()
     );
-
-    if channel.is_funded() {
-        msg!("Event: perun::fund_c {:?} is fully funded", channel_id);
-    }
 
     Ok(())
 }
 
 /// get_funded looks if other party has to fund
-fn get_funded(tokens: Vec<CrossAsset>, amount: Vec<u64>) -> bool {
+fn get_funded(tokens: &[CrossAsset], amount: &[u64]) -> bool {
     let mut funded = true;
     for i in 0..tokens.len() {
         let token = tokens.get(i).unwrap();

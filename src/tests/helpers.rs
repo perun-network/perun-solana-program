@@ -13,7 +13,12 @@
 // limitations under the License.
 
 use {
-    crate::state::ethsig::EthSigner,
+    crate::state::{
+        ethsig::{EthHash, EthSigner},
+        ChannelState,
+    },
+    alloy_primitives::keccak256,
+    alloy_sol_types::SolValue,
     k256::ecdsa::{SigningKey, VerifyingKey},
     rand::thread_rng,
     solana_sdk::signer::keypair::Keypair,
@@ -37,4 +42,18 @@ pub fn get_pubkey_secp_bytes(pubkey: &VerifyingKey) -> [u8; 65] {
         .try_into()
         .unwrap();
     pubkey_bytes
+}
+
+pub fn sign_cross_abi(signer: &TestKeyPair, payload: &ChannelState) -> [u8; 65] {
+    let state_sol = payload.convert_state().expect("Failed to convert state");
+    let state_sol_abi = state_sol.abi_encode();
+
+    let state_sol_hashed = keccak256(&state_sol_abi);
+    let state_sol_bytes: [u8; 32] = state_sol_hashed.into();
+
+    let ethhash = EthHash(state_sol_bytes.into());
+
+    let sig1 = signer.eth_signer.sign_eth(&ethhash);
+    let sig1_ethbytes = sig1.0;
+    sig1_ethbytes
 }

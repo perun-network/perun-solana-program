@@ -28,7 +28,7 @@ use alloy_primitives::{
 use alloy_sol_types::SolValue;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
+use solana_program::{keccak::hashv, pubkey::Pubkey};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq)]
 // Participant represents a participant in the channel.
@@ -202,17 +202,24 @@ impl ChannelState {
         })
     }
 
-    pub fn hash_state_eth_prefixed(&self) -> Result<FixedBytes<32>, PerunError> {
+    pub fn hash_state_eth_prefixed(&self) -> Result<[u8; 32], PerunError> {
         let state_sik = self.convert_state()?;
         let state_abienc = state_sik.abi_encode();
 
-        let state_sol_hashed = keccak256(&state_abienc);
+        // First hash: keccak256(state_abienc)
+        let state_hash = hashv(&[&state_abienc]);
 
-        let prefix = b"\x19Ethereum Signed Message:\n32";
-        let prefix_hash = [prefix.as_ref(), &state_sol_hashed[..]].concat();
+        // Prepare prefix and hash as &[&[u8]] for second keccak
+        const PREFIX: &[u8] = b"\x19Ethereum Signed Message:\n32";
 
-        let state_sol_prefix_hash = keccak256(&prefix_hash);
-        Ok(state_sol_prefix_hash)
+        let final_hash = hashv(&[PREFIX, &state_hash.0]);
+        // Convert the final hash to a fixed-size array
+        let final_hash: [u8; 32] = final_hash
+            .as_ref()
+            .try_into()
+            .map_err(|_| PerunError::InvalidHash)?;
+
+        Ok(final_hash)
     }
 }
 

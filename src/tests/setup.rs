@@ -151,6 +151,92 @@ impl Test {
             );
         }
     }
+
+    pub fn update(&mut self, new_state: ChannelState) {
+        self.state = new_state;
+    }
+
+    pub fn send_to_a(&mut self, amt: Vec<u64>) {
+        assert_eq!(
+            self.state.balances.bal_a.len(),
+            amt.len(),
+            "length of bal_a and amt must be the same"
+        );
+        assert_eq!(
+            self.state.balances.bal_b.len(),
+            amt.len(),
+            "length of bal_b and amt must be the same"
+        );
+
+        let mut new_bal_a = Vec::new();
+        let mut new_bal_b = Vec::new();
+        for i in 0..amt.len() {
+            let bal_a = self.state.balances.bal_a.get(i).unwrap() + amt.get(i).unwrap();
+            let bal_b = self.state.balances.bal_b.get(i).unwrap() - amt.get(i).unwrap();
+            new_bal_a.push(bal_a);
+            new_bal_b.push(bal_b);
+        }
+
+        self.update(ChannelState {
+            channel_id: self.state.channel_id.clone(),
+            balances: Balances {
+                tokens: self.state.balances.tokens.clone(),
+                bal_a: new_bal_a,
+                bal_b: new_bal_b,
+            },
+            version: self.state.version + 1,
+            finalized: self.state.finalized,
+        })
+    }
+
+    pub fn send_to_b(&mut self, amt: Vec<u64>) {
+        assert_eq!(
+            self.state.balances.bal_a.len(),
+            amt.len(),
+            "length of bal_a and amt must be the same"
+        );
+        assert_eq!(
+            self.state.balances.bal_b.len(),
+            amt.len(),
+            "length of bal_b and amt must be the same"
+        );
+
+        let mut new_bal_a = Vec::new();
+        let mut new_bal_b = Vec::new();
+        for i in 0..amt.len() {
+            let bal_a = self.state.balances.bal_a.get(i).unwrap() - amt.get(i).unwrap();
+            let bal_b = self.state.balances.bal_b.get(i).unwrap() + amt.get(i).unwrap();
+            new_bal_a.push(bal_a);
+            new_bal_b.push(bal_b);
+        }
+
+        self.update(ChannelState {
+            channel_id: self.state.channel_id.clone(),
+            balances: Balances {
+                tokens: self.state.balances.tokens.clone(),
+                bal_a: new_bal_a,
+                bal_b: new_bal_b,
+            },
+            version: self.state.version + 1,
+            finalized: self.state.finalized,
+        })
+    }
+
+    pub fn finalize(&mut self) {
+        self.update(ChannelState {
+            version: self.state.version + 1,
+            finalized: true,
+            ..self.state.clone()
+        });
+    }
+
+    pub fn sigs_cc_abi_a(&self) -> [u8; 65] {
+        sign_cross_abi(&self.alice_keypair, &self.state)
+    }
+
+    pub fn sigs_cc_abi_b(&self) -> [u8; 65] {
+        sign_cross_abi(&self.bob_keypair, &self.state)
+    }
 }
 
 pub async fn setup(

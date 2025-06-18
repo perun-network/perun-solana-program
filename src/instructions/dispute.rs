@@ -22,12 +22,12 @@ use {
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
-        account_info::{AccountInfo, next_account_info},
+        account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
         program_error::ProgramError,
         pubkey::Pubkey,
-        sysvar::{Sysvar, clock::Clock},
+        sysvar::{clock::Clock, Sysvar},
     },
 };
 
@@ -82,9 +82,7 @@ pub fn process_dispute(
         return Err(PerunError::InvalidStateTransition.into());
     }
     // Verify that the new state is signed by both parties.
-    let state_sol_prefix_hash = new_state
-        .hash_state_eth_prefixed()
-        .expect("hashing state eth style failed");
+    let hash = new_state.hash_state_eth_prefixed()?;
     let pub_key_a = ChannelPubKeyCross {
         key: channel.params.a.l2_pubkey.clone(),
     };
@@ -92,11 +90,11 @@ pub fn process_dispute(
         key: channel.params.b.l2_pubkey.clone(),
     };
     pub_key_a
-        .verify_signature_cross(state_sol_prefix_hash.clone(), &sig_a)
+        .verify_signature_cross(&hash, &sig_a)
         .map_err(|_| PerunError::InvalidSignature)?;
 
     pub_key_b
-        .verify_signature_cross(state_sol_prefix_hash.clone(), &sig_b)
+        .verify_signature_cross(&hash.clone(), &sig_b)
         .map_err(|_| PerunError::InvalidSignature)?;
 
     // 3. Update channel state to disputed.

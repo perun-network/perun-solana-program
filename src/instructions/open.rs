@@ -33,8 +33,6 @@ use solana_program::{
     sysvar::{clock::Clock, Sysvar},
 };
 
-use borsh::BorshSerialize;
-
 pub fn process_open(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -89,7 +87,7 @@ pub fn process_open(
         withdrawn_b: false,
         disputed: false,
         timestamp: clock.unix_timestamp as u64,
-        creator: payer.key.clone(),
+        creator: *payer.key,
     };
 
     // 4. Build and serialize the channel
@@ -99,21 +97,16 @@ pub fn process_open(
         control,
     };
 
+    let serialized = borsh::to_vec(&channel).map_err(|_| ProgramError::InvalidAccountData)?;
     let rent = Rent::get()?;
-    let channel_span = borsh::to_vec(&channel).unwrap().len();
-    msg!(
-        "Channel span: {}, required lamports: {}",
-        channel_span,
-        rent.minimum_balance(channel_span)
-    );
-    let required_lamports = rent.minimum_balance(channel_span);
+    let required_lamports = rent.minimum_balance(serialized.len());
 
     invoke_signed(
         &system_instruction::create_account(
             payer.key,
             channel_account.key,
             required_lamports,
-            channel_span as u64,
+            serialized.len() as u64,
             program_id,
         ),
         &[
@@ -127,12 +120,8 @@ pub fn process_open(
             &[chanenl_bump],
         ]],
     )?;
-    channel.serialize(&mut &mut channel_account.data.borrow_mut()[..])?;
-    msg!(
-        "Channel created with PDA: {}, Bump: {}",
-        channel_pda,
-        chanenl_bump
-    );
+    let data = &mut channel_account.data.borrow_mut();
+    data[..serialized.len()].copy_from_slice(&serialized);
 
     // 5. Emit open event.
     msg!("Event: perun::open {:?}", cid,);

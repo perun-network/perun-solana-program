@@ -43,27 +43,12 @@ impl Processor {
             PerunInstruction::Fund {
                 channel_id,
                 party_idx,
-            } => {
-                msg!(
-                    "Processing Fund instruction with channel_id: {:?} and party_idx: {}",
-                    channel_id,
-                    party_idx
-                );
-                fund::process_fund(program_id, accounts, channel_id, party_idx)
-            }
+            } => fund::process_fund(program_id, accounts, channel_id, party_idx),
             PerunInstruction::Close {
                 state,
                 sig_a,
                 sig_b,
-            } => {
-                msg!(
-                    "Processing Close instruction with state: {:?}, sig_a: {:?}, sig_b: {:?}",
-                    state,
-                    sig_a,
-                    sig_b
-                );
-                close::process_close(program_id, accounts, state, sig_a, sig_b)
-            }
+            } => close::process_close(program_id, accounts, state, sig_a, sig_b),
             PerunInstruction::ForceClose { channel_id } => {
                 msg!(
                     "Processing ForceClose instruction with channel_id: {:?}",
