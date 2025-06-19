@@ -124,7 +124,11 @@ pub fn process_open(
     data[..serialized.len()].copy_from_slice(&serialized);
 
     // 5. Emit open event.
-    msg!("Event: perun::open {:?}", cid,);
+    msg!(
+        "Event: perun::open channel {:?}, state: {:?}",
+        cid,
+        channel.state
+    );
 
     Ok(())
 }

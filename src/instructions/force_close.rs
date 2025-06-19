@@ -19,12 +19,12 @@ use {
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
-        account_info::{AccountInfo, next_account_info},
+        account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         msg,
         program_error::ProgramError,
         pubkey::Pubkey,
-        sysvar::{Sysvar, clock::Clock},
+        sysvar::{clock::Clock, Sysvar},
     },
 };
 
@@ -35,12 +35,6 @@ pub fn process_force_close(
     accounts: &[AccountInfo],
     channel_id: ChannelID,
 ) -> ProgramResult {
-    msg!(
-        "Processing ForceClose instruction with program_id: {:?}, channel_id: {:?}",
-        program_id,
-        channel_id
-    );
-
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
 
@@ -94,5 +88,11 @@ pub fn is_timelock_expired(channel: &Channel) -> bool {
     }
     let clock = Clock::get().unwrap();
     let current_time = clock.unix_timestamp as u64;
+    msg!(
+        "Current time: {}, Channel control timestamp: {}, Challenge duration: {}",
+        current_time,
+        channel.control.timestamp,
+        channel.params.challenge_duration
+    );
     channel.control.timestamp + channel.params.challenge_duration <= current_time
 }

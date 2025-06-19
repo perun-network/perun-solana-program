@@ -41,14 +41,6 @@ pub fn process_dispute(
     sig_a: [u8; 65],
     sig_b: [u8; 65],
 ) -> ProgramResult {
-    msg!(
-        "Processing Dispute instruction with program_id: {:?}, state: {:?}, sig_a: {:?}, sig_b: {:?}",
-        program_id,
-        new_state,
-        sig_a,
-        sig_b
-    );
-
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
 

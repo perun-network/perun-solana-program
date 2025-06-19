@@ -56,10 +56,7 @@ impl Processor {
                 close::process_close(program_id, accounts, state, sig_a, sig_b)
             }
             PerunInstruction::ForceClose { channel_id } => {
-                msg!(
-                    "Processing ForceClose instruction with channel_id: {:?}",
-                    channel_id
-                );
+                msg!("FORCE_CLOSE");
                 force_close::process_force_close(program_id, accounts, channel_id)
             }
             PerunInstruction::Dispute {
@@ -67,12 +64,7 @@ impl Processor {
                 sig_a,
                 sig_b,
             } => {
-                msg!(
-                    "Processing Dispute instruction with state: {:?}, sig_a: {:?}, sig_b: {:?}",
-                    state,
-                    sig_a,
-                    sig_b
-                );
+                msg!("DISPUTE");
                 dispute::process_dispute(program_id, accounts, state, sig_a, sig_b)
             }
             PerunInstruction::Withdraw {
@@ -90,10 +82,7 @@ impl Processor {
                 )
             }
             PerunInstruction::AbortFunding { channel_id } => {
-                msg!(
-                    "Processing AbortFunding instruction with channel_id: {:?}",
-                    channel_id
-                );
+                msg!("ABORT_FUNDING",);
                 abort_funding::process_abort_funding(program_id, accounts, channel_id)
             }
         }

@@ -30,9 +30,9 @@ use {
     solana_program::program_pack::Pack,
     solana_program_test::*,
     solana_sdk::{
-        account::Account as SolanaAccount, pubkey::Pubkey, signature::Signer,
-        signer::keypair::Keypair, system_instruction, sysvar::rent::Rent, transaction::Transaction,
-        transport::TransportError,
+        account::Account as SolanaAccount, msg, pubkey::Pubkey, signature::Signer,
+        signer::keypair::Keypair, system_instruction, sysvar::clock::Clock, sysvar::rent::Rent,
+        transaction::Transaction, transport::TransportError,
     },
     spl_associated_token_account::{
         get_associated_token_address_with_program_id,
@@ -51,6 +51,8 @@ pub struct Test {
     pub channel_id: ChannelID,
     pub state: ChannelState,
     pub token_addresses: Vec<Pubkey>,
+    pub mixed_assets: bool,
+    pub one_withdrawer: bool,
 }
 
 impl Test {
@@ -231,6 +233,37 @@ impl Test {
     pub fn sigs_cc_abi_b(&self) -> [u8; 65] {
         sign_cross_abi(&self.bob_keypair, &self.state)
     }
+
+    pub async fn advance_clock_by(&mut self, ms: i64) {
+        let clock: Clock = self
+            .program_test_ctx
+            .banks_client
+            .get_sysvar()
+            .await
+            .expect("get Clock sysvar");
+        let start_ts = clock.unix_timestamp;
+        let start_slot = clock.slot;
+
+        let slots_needed = (ms as f64).ceil() as u64;
+        let target_slot = start_slot + slots_needed;
+
+        // Warp to target slot
+        self.program_test_ctx.warp_to_slot(target_slot).unwrap();
+
+        let clock2: Clock = self
+            .program_test_ctx
+            .banks_client
+            .get_sysvar()
+            .await
+            .expect("get Clock sysvar");
+        msg!(
+            "Advanced time from ts={} (slot={}) to ts={} (slot={})",
+            start_ts,
+            start_slot,
+            clock2.unix_timestamp,
+            clock2.slot
+        );
+    }
 }
 
 pub async fn setup(
@@ -238,6 +271,7 @@ pub async fn setup(
     bal_a: Vec<u64>,
     bal_b: Vec<u64>,
     mixed_assets: bool,
+    one_withdrawer: bool,
 ) -> Result<Test, TransportError> {
     let program_id = Pubkey::new_unique();
     // Solana addresses for Alice and Bob
@@ -486,6 +520,8 @@ pub async fn setup(
         channel_id,
         state,
         token_addresses,
+        mixed_assets,
+        one_withdrawer, // Default to false, can be set later
     })
 }
 

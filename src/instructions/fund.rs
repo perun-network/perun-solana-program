@@ -192,7 +192,7 @@ pub fn process_fund(
                             payer.clone(),
                             token_program.clone(),
                         ],
-                    )?
+                    )?;
                 }
             }
         }
@@ -200,7 +200,7 @@ pub fn process_fund(
 
     // 4. Emit fund event.
     msg!(
-        "Event: perun::fund channel {:?} for party {:?}",
+        "Event: perun:fund channel {:?} for party {:?}",
         channel_id,
         if party_idx { "B" } else { "A" },
     );
