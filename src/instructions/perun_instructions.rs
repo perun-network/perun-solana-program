@@ -13,6 +13,7 @@
 //  limitations under the License.
 use crate::state::perun_types::{ChannelID, ChannelState, Params};
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::account_info::AccountInfo;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum PerunInstruction {
@@ -45,4 +46,12 @@ pub enum PerunInstruction {
     AbortFunding {
         channel_id: ChannelID,
     },
+}
+
+/// Checks if the given payer is a participant in the channel defined by the parameters.
+pub fn check_participant(payer: &AccountInfo, params: &Params) -> bool {
+    if params.a.solana_address == *payer.key || params.b.solana_address == *payer.key {
+        return true;
+    }
+    false
 }

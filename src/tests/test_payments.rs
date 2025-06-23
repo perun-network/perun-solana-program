@@ -42,7 +42,7 @@ pub async fn test_honest_payment_cross_same_assets() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice and Bob fund the channel.
@@ -65,7 +65,7 @@ pub async fn test_honest_payment_cross_same_assets() {
     let sig_b_cc = t.sigs_cc_abi_b();
 
     // Call the close instruction on-chain.
-    t.close(t.state.clone(), sig_a_cc.clone(), sig_b_cc.clone())
+    t.close(A, t.state.clone(), sig_a_cc.clone(), sig_b_cc.clone())
         .await;
     t.verify_state(&t.state).await;
     t.verify_bal_contract(bal_contract_after_final).await;
@@ -106,7 +106,7 @@ pub async fn test_honest_payment_cross_mixed_asset() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice and Bob fund the channel.
@@ -129,7 +129,7 @@ pub async fn test_honest_payment_cross_mixed_asset() {
     let sig_b_cc = t.sigs_cc_abi_b();
 
     // Call the close instruction on-chain.
-    t.close(t.state.clone(), sig_a_cc.clone(), sig_b_cc.clone())
+    t.close(A, t.state.clone(), sig_a_cc.clone(), sig_b_cc.clone())
         .await;
     t.verify_state(&t.state).await;
     t.verify_bal_contract(bal_contract_after_final).await;
@@ -165,7 +165,7 @@ pub async fn test_funding_abort_cross_mixed_assets() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice funds the channel.
@@ -199,7 +199,7 @@ pub async fn test_funding_abort_cross_same_assets() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice funds the channel.
@@ -241,7 +241,7 @@ pub async fn test_dispute_cross_same_assets() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice and Bob fund the channel.
@@ -309,7 +309,7 @@ pub async fn test_dispute_cross_mixed_assets() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice and Bob fund the channel.
@@ -378,7 +378,7 @@ pub async fn test_malicious_dispute() {
         .expect("Failed to setup test");
 
     // Alice opens the channel.
-    t.open().await;
+    t.open(A).await;
     t.verify_state(&t.state).await;
 
     // Alice and Bob fund the channel.

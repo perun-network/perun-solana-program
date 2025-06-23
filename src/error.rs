@@ -37,6 +37,9 @@ pub enum PerunError {
     #[error("Encoding error")]
     EncodingError,
 
+    #[error("Payer not a participant")]
+    PayerNotParticipant,
+
     #[error("Invalid actor")]
     InvalidActor,
 

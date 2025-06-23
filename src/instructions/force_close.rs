@@ -15,6 +15,7 @@
 use {
     crate::{
         error::PerunError,
+        instructions::perun_instructions::check_participant,
         state::perun_types::{Channel, ChannelID},
     },
     borsh::{BorshDeserialize, BorshSerialize},
@@ -37,6 +38,7 @@ pub fn process_force_close(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA.
     let (channel_pda, _bump) = Pubkey::find_program_address(
@@ -51,6 +53,15 @@ pub fn process_force_close(
 
     // 2. Deserialize and validate.
     let channel = &mut Channel::try_from_slice(&channel_account.try_borrow_mut_data()?)?;
+    if !check_participant(payer, &channel.params) {
+        msg!("Payer is not a participant in the channel");
+        return Err(PerunError::PayerNotParticipant.into());
+    }
+    if !payer.is_signer {
+        msg!("Payer must sign the force close instruction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     if channel.control.closed {
         msg!("Channel is already closed");
         return Err(PerunError::ForceCloseOnClosedChannel.into());

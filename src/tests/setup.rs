@@ -15,7 +15,6 @@
 use {
     crate::{
         entrypoint::process_instruction,
-        instructions::perun_instructions::PerunInstruction,
         state::{
             ethsig::EthSigner,
             multi::{Chain, ChannelPubKeyCross, CrossAsset},

@@ -18,13 +18,9 @@ use {
         instructions::perun_instructions::PerunInstruction,
         state::{Channel, ChannelState},
     },
-    alloy_primitives::keccak256,
-    alloy_sol_types::SolValue,
     solana_sdk::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
-        secp256k1_program,
-        signature::Signer,
         signer::keypair::Keypair,
         system_program,
         transaction::Transaction,
@@ -33,12 +29,24 @@ use {
 };
 
 impl Test {
-    pub async fn open(&mut self) {
+    pub async fn open(&mut self, party_idx: bool) {
         // Derive channel PDA
         let (channel_pda, _bump) = Pubkey::find_program_address(
             &[Channel::SEED_PREFIX.as_bytes(), self.channel_id.as_bytes()],
             &self.program_id,
         );
+
+        let actor;
+        let actor_keypair: &Keypair;
+        if party_idx {
+            // If party B is disputing, use Bob's address
+            actor = self.bob.solana_address;
+            actor_keypair = &self.bob_keypair.solana_signer;
+        } else {
+            // If party A is disputing, use Alice's address
+            actor = self.alice.solana_address;
+            actor_keypair = &self.alice_keypair.solana_signer;
+        }
 
         // Serialize open instruction
         let open_ix = Instruction::new_with_borsh(
@@ -49,15 +57,15 @@ impl Test {
             },
             vec![
                 AccountMeta::new(channel_pda, false),
-                AccountMeta::new(self.alice.solana_address, true),
+                AccountMeta::new(actor, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
         // Create and send the transaction
         let tx = Transaction::new_signed_with_payer(
             &[open_ix],
-            Some(&self.alice.solana_address),
-            &[&self.alice_keypair.solana_signer],
+            Some(&actor),
+            &[&actor_keypair],
             self.program_test_ctx
                 .banks_client
                 .get_latest_blockhash()
@@ -216,12 +224,30 @@ impl Test {
             .expect("Failed to process fund transaction");
     }
 
-    pub async fn close(&mut self, state: ChannelState, sig_a: [u8; 65], sig_b: [u8; 65]) {
+    pub async fn close(
+        &mut self,
+        party_idx: bool,
+        state: ChannelState,
+        sig_a: [u8; 65],
+        sig_b: [u8; 65],
+    ) {
         // Derive channel PDA
         let (channel_pda, _bump) = Pubkey::find_program_address(
             &[Channel::SEED_PREFIX.as_bytes(), self.channel_id.as_bytes()],
             &self.program_id,
         );
+
+        let actor;
+        let actor_keypair: &Keypair;
+        if party_idx {
+            // If party B is disputing, use Bob's address
+            actor = self.bob.solana_address;
+            actor_keypair = &self.bob_keypair.solana_signer;
+        } else {
+            // If party A is disputing, use Alice's address
+            actor = self.alice.solana_address;
+            actor_keypair = &self.alice_keypair.solana_signer;
+        }
 
         // Serialize close instruction
         let close_ix = Instruction::new_with_borsh(
@@ -231,14 +257,17 @@ impl Test {
                 sig_a,
                 sig_b,
             },
-            vec![AccountMeta::new(channel_pda, false)],
+            vec![
+                AccountMeta::new(channel_pda, false),
+                AccountMeta::new(actor, true),
+            ],
         );
 
         // Create and send the transaction
         let tx = Transaction::new_signed_with_payer(
             &[close_ix],
-            Some(&self.alice.solana_address),
-            &[&self.alice_keypair.solana_signer],
+            Some(&actor),
+            &[&actor_keypair],
             self.program_test_ctx
                 .banks_client
                 .get_latest_blockhash()
@@ -561,17 +590,6 @@ impl Test {
             &self.program_id,
         );
 
-        // Serialize close instruction
-        let dispute_ix = Instruction::new_with_borsh(
-            self.program_id,
-            &PerunInstruction::Dispute {
-                state,
-                sig_a,
-                sig_b,
-            },
-            vec![AccountMeta::new(channel_pda, false)],
-        );
-
         let actor;
         let actor_keypair: &Keypair;
         if party_idx {
@@ -583,6 +601,20 @@ impl Test {
             actor = self.alice.solana_address;
             actor_keypair = &self.alice_keypair.solana_signer;
         }
+
+        // Serialize close instruction
+        let dispute_ix = Instruction::new_with_borsh(
+            self.program_id,
+            &PerunInstruction::Dispute {
+                state,
+                sig_a,
+                sig_b,
+            },
+            vec![
+                AccountMeta::new(channel_pda, false),
+                AccountMeta::new(actor, true),
+            ],
+        );
 
         // Create and send the transaction
         let tx = Transaction::new_signed_with_payer(
@@ -609,15 +641,6 @@ impl Test {
             &self.program_id,
         );
 
-        // Serialize force close instruction
-        let force_close_ix = Instruction::new_with_borsh(
-            self.program_id,
-            &PerunInstruction::ForceClose {
-                channel_id: self.channel_id.clone(),
-            },
-            vec![AccountMeta::new(channel_pda, false)],
-        );
-
         let actor;
         let actor_keypair: &Keypair;
         if party_idx {
@@ -630,6 +653,17 @@ impl Test {
             actor_keypair = &self.alice_keypair.solana_signer;
         }
 
+        // Serialize force close instruction
+        let force_close_ix = Instruction::new_with_borsh(
+            self.program_id,
+            &PerunInstruction::ForceClose {
+                channel_id: self.channel_id.clone(),
+            },
+            vec![
+                AccountMeta::new(channel_pda, false),
+                AccountMeta::new(actor, true),
+            ],
+        );
         // Create and send the transaction
         let tx = Transaction::new_signed_with_payer(
             &[force_close_ix],

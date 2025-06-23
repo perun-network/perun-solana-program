@@ -15,6 +15,7 @@
 use {
     crate::{
         error::PerunError,
+        instructions::perun_instructions::check_participant,
         state::{
             multi::{Chain, CrossAsset},
             perun_types::{Channel, ChannelID},
@@ -63,6 +64,11 @@ pub fn process_fund(
     let (expected_funder, amount, tokens) = {
         let mut data = channel_account.try_borrow_mut_data()?;
         let mut channel = Channel::try_from_slice(&data)?;
+
+        if !check_participant(payer, &channel.params) {
+            msg!("Payer is not a participant in the channel");
+            return Err(PerunError::PayerNotParticipant.into());
+        }
 
         let (expected_funder, amount) = match party_idx {
             A => {

@@ -15,6 +15,7 @@
 use {
     crate::{
         error::PerunError,
+        instructions::perun_instructions::check_participant,
         state::{
             multi::ChannelPubKeyCross,
             perun_types::{Channel, ChannelState},
@@ -43,6 +44,7 @@ pub fn process_dispute(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
 
     // 1. Get the channel PDA.
     let (channel_pda, _bump) = Pubkey::find_program_address(
@@ -69,6 +71,15 @@ pub fn process_dispute(
         return Err(PerunError::DisputeOnClosedChannel.into());
     }
     // Validate the state transition.
+    if !check_participant(payer, &channel.params) {
+        msg!("Payer is not a participant in the channel");
+        return Err(PerunError::PayerNotParticipant.into());
+    }
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     if !is_valid_state_transition(&channel.state, &new_state) {
         msg!("Invalid state transition");
         return Err(PerunError::InvalidStateTransition.into());

@@ -14,8 +14,8 @@
 
 use crate::{
     error::PerunError,
+    instructions::perun_instructions::check_participant,
     state::{
-        multi::Chain,
         perun_types::{Channel, ChannelID, ChannelState, Control, Params},
         sol::get_channel_id_cross,
     },
@@ -25,7 +25,7 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
+    program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
@@ -75,6 +75,16 @@ pub fn process_open(
     if state.finalized {
         msg!("Cannot open channel on final state");
         return Err(PerunError::OpenOnFinalState.into());
+    }
+
+    // Check payer.
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    if !check_participant(payer, &params) {
+        msg!("Payer is not a participant in the channel");
+        return Err(PerunError::PayerNotParticipant.into());
     }
 
     // 3. Construct control struct

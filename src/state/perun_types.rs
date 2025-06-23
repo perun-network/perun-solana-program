@@ -12,8 +12,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use std::fmt::Display;
-
 use crate::{
     error::PerunError,
     state::{
@@ -22,9 +20,7 @@ use crate::{
         CrossAsset,
     },
 };
-use alloy_primitives::{
-    keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
-};
+use alloy_primitives::{Bytes as PrimBytes, FixedBytes, U256};
 use alloy_sol_types::SolValue;
 
 use borsh::{BorshDeserialize, BorshSerialize};

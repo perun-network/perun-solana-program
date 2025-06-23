@@ -14,16 +14,11 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use solana_program::{
-    account_info::AccountInfo, instruction::Instruction, pubkey::Pubkey,
-    secp256k1_recover::secp256k1_recover,
-};
+use solana_program::{pubkey::Pubkey, secp256k1_recover::secp256k1_recover};
 
 use crate::{error::PerunError, state::sol::AssetSol};
 
-use alloy_primitives::{
-    keccak256, Address as EthAddress, Bytes as PrimBytes, FixedBytes, Uint, U256,
-};
+use alloy_primitives::{Address as EthAddress, U256};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct Chain(u64);
