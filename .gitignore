@@ -26,3 +26,7 @@ target/
 /target
 
 Cargo.lock
+
+# Scripts
+/scripts/accounts
+/scripts/test-ledger

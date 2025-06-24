@@ -36,6 +36,7 @@ pub struct Participant {
     pub cc_address: [u8; 20],
     pub l2_pubkey: [u8; 65], // Uncompressed secp256k1 public key
 }
+
 impl Participant {
     pub const SPACE: usize = 32 + 20; // 32 bytes for Pubkey + 20 bytes for Ethereum address
 }

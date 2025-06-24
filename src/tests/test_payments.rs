@@ -414,7 +414,8 @@ pub async fn test_malicious_dispute() {
     t.verify_state(&t.state).await;
 
     t.advance_clock_by(15_000).await; // Forward the clock to allow for dispute resolution.
-                                      // A force-closes the channel.
+
+    // A force-closes the channel.
     t.force_close(A).await;
     t.verify_state(&t.state).await;
     t.verify_bal_contract(bal_contract_after_fclose).await;
