@@ -22,8 +22,6 @@ echo "[token] Creating token accounts..."
 ATA_ALICE=$(spl-token create-account --fee-payer "$FEE_PAYER_KEYPAIR" "$MINT" --owner "$ALICE"  | grep -oP '(?<=Creating account )\w+')
 ATA_BOB=$(spl-token create-account "$MINT" --fee-payer "$FEE_PAYER_KEYPAIR" --owner "$BOB"  | grep -oP '(?<=Creating account )\w+')
 
-sleep 1  # Wait for accounts to be created
-
 echo "[token] Minting tokens..."
 spl-token mint "$MINT" 100 "$ATA_ALICE"
 spl-token mint "$MINT" 100 "$ATA_BOB"

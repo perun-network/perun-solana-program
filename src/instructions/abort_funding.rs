@@ -125,10 +125,6 @@ pub fn process_abort_funding(
                     let token_program = next_account_info(account_info_iter)?;
                     let associated_token_program = next_account_info(account_info_iter)?;
                     if to_associated_token_account.lamports() == 0 {
-                        msg!(
-                            "Creating associated token account for receiver: {}",
-                            to_associated_token_account.key
-                        );
                         // Creating associated token account for recipient.
                         invoke(
                             &associated_token_account_instruction::create_associated_token_account(
@@ -147,11 +143,6 @@ pub fn process_abort_funding(
                             ],
                         )?;
                     }
-                    msg!(
-                        "Recipient Associated Token Address: {}",
-                        to_associated_token_account.key
-                    );
-
                     let token_amount = amount[i] as u64;
                     // Seeds for channel PDA signing
                     let seeds = &[

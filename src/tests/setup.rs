@@ -29,7 +29,7 @@ use {
     solana_program::program_pack::Pack,
     solana_program_test::*,
     solana_sdk::{
-        account::Account as SolanaAccount, msg, pubkey::Pubkey, signature::Signer,
+        account::Account as SolanaAccount, pubkey::Pubkey, signature::Signer,
         signer::keypair::Keypair, system_instruction, sysvar::clock::Clock, sysvar::rent::Rent,
         transaction::Transaction, transport::TransportError,
     },
@@ -240,7 +240,6 @@ impl Test {
             .get_sysvar()
             .await
             .expect("get Clock sysvar");
-        let start_ts = clock.unix_timestamp;
         let start_slot = clock.slot;
 
         let slots_needed = (ms as f64).ceil() as u64;
@@ -248,20 +247,6 @@ impl Test {
 
         // Warp to target slot
         self.program_test_ctx.warp_to_slot(target_slot).unwrap();
-
-        let clock2: Clock = self
-            .program_test_ctx
-            .banks_client
-            .get_sysvar()
-            .await
-            .expect("get Clock sysvar");
-        msg!(
-            "Advanced time from ts={} (slot={}) to ts={} (slot={})",
-            start_ts,
-            start_slot,
-            clock2.unix_timestamp,
-            clock2.slot
-        );
     }
 }
 
