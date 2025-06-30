@@ -32,8 +32,10 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        let instruction = PerunInstruction::try_from_slice(instruction_data)
-            .map_err(|_| PerunError::InvalidInstruction)?;
+        let instruction = PerunInstruction::try_from_slice(instruction_data).map_err(|_| {
+            msg!("Invalid instr");
+            PerunError::InvalidInstruction
+        })?;
 
         match instruction {
             PerunInstruction::Open { params, state } => {

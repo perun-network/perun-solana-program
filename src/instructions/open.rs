@@ -42,7 +42,11 @@ pub fn process_open(
     // 1. Compute and validate channel ID
     let cid = get_channel_id_cross(&params);
     if cid != ChannelID::ID(state.channel_id) {
-        msg!("ChannelID mismatch");
+        msg!(
+            "Channel ID mismatch: expected {:?}, got {:?}",
+            cid,
+            state.channel_id
+        );
         return Err(PerunError::ChannelIDMismatch.into());
     }
 
