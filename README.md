@@ -4,7 +4,7 @@
 
 
 # perun-solana-program
-Perun State Channels on Solana
+Perun State Channels on Solana with **native EVM compatibility**, enabling secure and efficient cross-chain applications. 
 
 ## Project structure
 ```
