@@ -33,7 +33,7 @@ impl Processor {
         instruction_data: &[u8],
     ) -> ProgramResult {
         let instruction = PerunInstruction::try_from_slice(instruction_data).map_err(|_| {
-            msg!("Invalid instr");
+            msg!("Invalid Instruction: {:?}", instruction_data);
             PerunError::InvalidInstruction
         })?;
 

@@ -11,7 +11,7 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
-use crate::state::perun_types::{ChannelID, ChannelState, Params};
+use crate::state::perun_types::{ChannelState, Params};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::account_info::AccountInfo;
 
@@ -22,7 +22,7 @@ pub enum PerunInstruction {
         state: ChannelState,
     },
     Fund {
-        channel_id: ChannelID,
+        channel_id: [u8; 32],
         party_idx: bool,
     },
     Close {
@@ -31,7 +31,7 @@ pub enum PerunInstruction {
         sig_b: [u8; 65],
     },
     ForceClose {
-        channel_id: ChannelID,
+        channel_id: [u8; 32],
     },
     Dispute {
         state: ChannelState,
@@ -39,12 +39,12 @@ pub enum PerunInstruction {
         sig_b: [u8; 65],
     },
     Withdraw {
-        channel_id: ChannelID,
+        channel_id: [u8; 32],
         party_idx: bool,
         one_withdrawer: bool,
     },
     AbortFunding {
-        channel_id: ChannelID,
+        channel_id: [u8; 32],
     },
 }
 

@@ -142,7 +142,7 @@ impl Test {
             fund_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::Fund {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: *self.channel_id.as_bytes(),
                     party_idx,
                 },
                 vec![
@@ -190,7 +190,7 @@ impl Test {
             fund_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::Fund {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: *self.channel_id.as_bytes(),
                     party_idx,
                 },
                 vec![
@@ -344,7 +344,7 @@ impl Test {
             withdraw_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::Withdraw {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: self.channel_id.as_bytes().clone(),
                     party_idx,
                     one_withdrawer,
                 },
@@ -394,7 +394,7 @@ impl Test {
             withdraw_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::Withdraw {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: self.channel_id.as_bytes().clone(),
                     party_idx,
                     one_withdrawer,
                 },
@@ -493,7 +493,7 @@ impl Test {
             abort_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::AbortFunding {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: self.channel_id.as_bytes().clone(),
                 },
                 vec![
                     AccountMeta::new(channel_pda, false),
@@ -541,7 +541,7 @@ impl Test {
             abort_ix = Instruction::new_with_borsh(
                 self.program_id,
                 &PerunInstruction::AbortFunding {
-                    channel_id: self.channel_id.clone(),
+                    channel_id: self.channel_id.as_bytes().clone(),
                 },
                 vec![
                     AccountMeta::new(channel_pda, false),
@@ -657,7 +657,7 @@ impl Test {
         let force_close_ix = Instruction::new_with_borsh(
             self.program_id,
             &PerunInstruction::ForceClose {
-                channel_id: self.channel_id.clone(),
+                channel_id: self.channel_id.as_bytes().clone(),
             },
             vec![
                 AccountMeta::new(channel_pda, false),

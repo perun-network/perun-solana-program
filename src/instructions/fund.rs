@@ -18,7 +18,7 @@ use {
         instructions::perun_instructions::check_participant,
         state::{
             multi::{Chain, CrossAsset},
-            perun_types::{Channel, ChannelID},
+            perun_types::Channel,
         },
     },
     borsh::{BorshDeserialize, BorshSerialize},
@@ -29,6 +29,7 @@ use {
         program::invoke,
         program_error::ProgramError,
         pubkey::Pubkey,
+        system_instruction,
     },
     spl_token::instruction as token_instruction,
 };
@@ -42,7 +43,7 @@ const B: bool = true;
 pub fn process_fund(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    channel_id: ChannelID,
+    channel_id: [u8; 32],
     party_idx: bool,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -52,7 +53,7 @@ pub fn process_fund(
 
     // 1. Get the channel PDA
     let (channel_pda, _bump) = Pubkey::find_program_address(
-        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_bytes()],
+        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_ref()],
         program_id,
     );
 
@@ -133,17 +134,17 @@ pub fn process_fund(
                 // lamport transfer
                 if amount[i] > 0 {
                     let lamports = amount[i] as u64;
-                    // Subtract lamports from payer
-                    **payer.try_borrow_mut_lamports()? = payer
-                        .lamports()
-                        .checked_sub(lamports)
-                        .ok_or(ProgramError::InsufficientFunds)?;
-
-                    // Add lamports to channel account
-                    **channel_account.try_borrow_mut_lamports()? = channel_account
-                        .lamports()
-                        .checked_add(lamports)
-                        .ok_or(ProgramError::InsufficientFunds)?;
+                    let transfer_ix =
+                        system_instruction::transfer(&payer.key, &channel_account.key, lamports);
+                    // CPI to the system program
+                    invoke(
+                        &transfer_ix,
+                        &[
+                            payer.clone(),           // must be signer
+                            channel_account.clone(), // recipient
+                            system_program.clone(),  // system program
+                        ],
+                    )?;
                 }
             } else {
                 // SPL token transfer
@@ -156,7 +157,7 @@ pub fn process_fund(
                     let token_amount = amount[i] as u64;
                     if channel_associated_token_account.lamports() == 0 {
                         msg!(
-                            "Creating associated token account for channel: {}",
+                            "Associated token account for channel: {}",
                             channel_account.key
                         );
                         // Create associated token account for the channel.
@@ -178,10 +179,6 @@ pub fn process_fund(
                         ],
                     )?;
                     }
-                    msg!(
-                        "Channel Associated Token Address: {}",
-                        channel_associated_token_account.key
-                    );
                     invoke(
                         &token_instruction::transfer(
                             token_program.key,

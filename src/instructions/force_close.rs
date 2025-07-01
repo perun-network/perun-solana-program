@@ -14,9 +14,8 @@
 
 use {
     crate::{
-        error::PerunError,
-        instructions::perun_instructions::check_participant,
-        state::perun_types::{Channel, ChannelID},
+        error::PerunError, instructions::perun_instructions::check_participant,
+        state::perun_types::Channel,
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
@@ -34,7 +33,7 @@ use {
 pub fn process_force_close(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    channel_id: ChannelID,
+    channel_id: [u8; 32],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
@@ -42,7 +41,7 @@ pub fn process_force_close(
 
     // 1. Get the channel PDA.
     let (channel_pda, _bump) = Pubkey::find_program_address(
-        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_bytes()],
+        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_ref()],
         program_id,
     );
 

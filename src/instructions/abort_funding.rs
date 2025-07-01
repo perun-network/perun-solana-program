@@ -15,10 +15,7 @@
 use {
     crate::{
         error::PerunError,
-        state::{
-            multi::Chain,
-            perun_types::{Channel, ChannelID},
-        },
+        state::{multi::Chain, perun_types::Channel},
     },
     borsh::BorshDeserialize,
     solana_program::{
@@ -29,7 +26,7 @@ use {
         program_error::ProgramError,
         pubkey::Pubkey,
         rent::Rent,
-        system_program,
+        system_instruction, system_program,
         sysvar::Sysvar,
     },
     spl_associated_token_account::instruction as associated_token_account_instruction,
@@ -39,14 +36,14 @@ use {
 pub fn process_abort_funding(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    channel_id: ChannelID,
+    channel_id: [u8; 32],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let channel_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     // 1. Get the channel PDA.
     let (channel_pda, bump) = Pubkey::find_program_address(
-        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_bytes()],
+        &[Channel::SEED_PREFIX.as_bytes(), channel_id.as_ref()],
         program_id,
     );
 
@@ -105,17 +102,19 @@ pub fn process_abort_funding(
         if token.chain == Chain::new(Chain::SOLANA_BACKEND_ID) {
             if amount[i] > 0 {
                 if token.is_native_sol() {
+                    let system_program = next_account_info(account_info_iter)?;
                     // Native SOL transfer.
                     let lamports = amount[i] as u64;
-                    **channel_account.try_borrow_mut_lamports()? = channel_account
-                        .lamports()
-                        .checked_sub(lamports)
-                        .ok_or(ProgramError::InsufficientFunds)?;
-
-                    **payer.try_borrow_mut_lamports()? = payer
-                        .lamports()
-                        .checked_add(lamports)
-                        .ok_or(ProgramError::InsufficientFunds)?;
+                    let transfer_ix =
+                        system_instruction::transfer(&payer.key, &channel_account.key, lamports);
+                    invoke(
+                        &transfer_ix,
+                        &[
+                            payer.clone(),           // must be signer
+                            channel_account.clone(), // recipient
+                            system_program.clone(),  // system program
+                        ],
+                    )?;
                 } else {
                     // SPL token transfer
                     let mint_account = next_account_info(account_info_iter)?;
@@ -147,7 +146,7 @@ pub fn process_abort_funding(
                     // Seeds for channel PDA signing
                     let seeds = &[
                         Channel::SEED_PREFIX.as_bytes(),
-                        channel_id.as_bytes(),
+                        channel_id.as_ref(),
                         &[bump],
                     ];
                     invoke_signed(
