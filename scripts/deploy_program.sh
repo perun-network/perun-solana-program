@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 PROGRAM_PATH="../target/deploy/perun_solana_program.so"
+ADDRESS_DIR="addresses"
 
 echo "[deploy] Deploying program..."
-solana program deploy "$PROGRAM_PATH"
+DEPLOY_OUTPUT=$(solana program deploy "$PROGRAM_PATH")
+
+# Extract program ID from deploy output
+PROGRAM_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP '(?<=Program Id: )\w+')
+
+# Write to file
+echo "$PROGRAM_ID" > "$ADDRESS_DIR/perun_address.txt"
+echo "[done] PROGRAM_ID=$PROGRAM_ID"
+

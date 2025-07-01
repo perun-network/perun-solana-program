@@ -3,11 +3,17 @@ set -e
 
 SCRIPTS_DIR="scripts"
 ACCOUNTS_DIR="accounts"
+ADDRESS_DIR="addresses"
 
 if [ -d $ACCOUNTS_DIR ]; then
   rm -rf $ACCOUNTS_DIR/*
 fi
 mkdir -p $ACCOUNTS_DIR
+
+if [ -d $ADDRESS_DIR ]; then
+  rm -rf $ADDRESS_DIR/*
+fi
+mkdir -p $ADDRESS_DIR
 
 # Build the program
 echo "[build] Building the program..."
